@@ -67,9 +67,11 @@ class PathFilter:
             if len(class_student_parts) != 3:
                 return False
 
-            # 2. 과제 폴더 검사 (예: hw1, hw10)
+            # 2. 과제 폴더 검사 (예: hw1, hw10, prac 제외)
             hw_part = parts[1]
-            if not (hw_part.startswith("hw") and hw_part[2:].isdigit() and 0 <= int(hw_part[2:]) <= 10):
+            if hw_part.startswith("prac"):
+                return False
+            if not (hw_part.startswith("hw") and hw_part[2:].isdigit() and 0 <= int(hw_part[2:]) <= settings.HW_MAX_COUNT):
                 return False
 
             # 3. 파일 확장자 검사

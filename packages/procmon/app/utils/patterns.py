@@ -5,7 +5,7 @@ import re
 SUBJECT_CODE_PATTERN = r"[a-zA-Z0-9]+"  # 과목코드: 영숫자
 CLASS_NUM_PATTERN = r"\d+"              # 분반: 숫자
 STUDENT_ID_PATTERN = r"\d+"             # 학번: 숫자
-HOMEWORK_DIR_PATTERN = r"hw(?:20|1[0-9]|[0-9])"  # 과제 디렉터리: hw0-hw20
+HOMEWORK_DIR_PATTERN = r"hw(?:1[0-5]|[0-9])"  # 과제 디렉터리: hw0-hw15
 
 # 조합된 패턴들
 CLASS_DIV_PATTERN = f"({SUBJECT_CODE_PATTERN})-({CLASS_NUM_PATTERN})"  # 과목-분반

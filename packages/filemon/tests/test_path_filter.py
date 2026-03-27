@@ -33,7 +33,8 @@ path_test_cases = [
     (".git 디렉토리", "/watcher/codes/class-1-202012345/hw1/.git/config", False),
     ("숨김 파일", "/watcher/codes/class-1-202012345/hw1/.DS_Store", False),
     # 잘못된 과제 번호
-    ("잘못된 hw 번호 (hw11)", "/watcher/codes/class-1-202012345/hw11/test.c", False),
+    ("유효한 hw 번호 (hw11)", "/watcher/codes/class-1-202012345/hw11/test.c", True),
+    ("잘못된 hw 번호 (hw16)", "/watcher/codes/class-1-202012345/hw16/test.c", False),
     # 잘못된 확장자
     ("잘못된 확장자 (txt)", "/watcher/codes/class-1-202012345/hw1/test.txt", False),
     # 잘못된 경로 구조

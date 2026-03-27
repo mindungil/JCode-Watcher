@@ -5,6 +5,7 @@ class Settings(BaseSettings):
     WATCH_ROOT: Path = Path('/watcher/codes')
     SNAPSHOT_BASE: Path = Path('/watcher/snapshots')
     MAX_CAPTURABLE_FILE_SIZE: int = 64 * 1024  # 64KB - 저장할 수 있는 최대 파일 크기
+    HW_MAX_COUNT: int = 15  # hw 디렉토리 최대 번호
     API_SERVER: str = "http://localhost:8080"  # API 서버 주소
     API_TIMEOUT_TOTAL: int = 20
     

@@ -17,7 +17,7 @@ class TestPathParser:
             ("/workspace/os-1-202012345/hw1/main.c", "hw1"),
             ("/workspace/a-2-123456789/hw2/test.py", "hw2"),
             ("/workspace/linux-10-987654321/hw15", "hw15"),
-            ("/workspace/sys-5-111222333/hw20/project", "hw20"),
+            ("/workspace/sys-5-111222333/hw15/project", "hw15"),
             ("/workspace/net-1-555666777/hw3/src/main.c", "hw3"),
         ]
         
@@ -34,7 +34,7 @@ class TestPathParser:
             ("/home/coder/project/hw1/main.c", "hw1"),
             ("/home/coder/project/hw5/test.py", "hw5"),
             ("/home/coder/project/hw10", "hw10"),
-            ("/home/coder/project/hw20/subfolder/file.c", "hw20"),
+            ("/home/coder/project/hw15/subfolder/file.c", "hw15"),
         ]
         
         for path, expected in test_cases:
@@ -48,8 +48,8 @@ class TestPathParser:
             ("/workspace/os-1-123/hw0/main.c", "hw0"),
             ("/workspace/os-1-123/hw9/main.c", "hw9"),
             ("/workspace/os-1-123/hw10/main.c", "hw10"),
-            ("/workspace/os-1-123/hw19/main.c", "hw19"),
-            ("/workspace/os-1-123/hw20/main.c", "hw20"),
+            ("/workspace/os-1-123/hw14/main.c", "hw14"),
+            ("/workspace/os-1-123/hw15/main.c", "hw15"),
         ]
         
         for path, expected in valid_cases:
