@@ -69,17 +69,17 @@ class TestPathParser:
             result = self.parser.parse(path)
             assert result is None, f"Should return None for invalid homework number: '{path}'"
     
-    def test_partial_homework_number_matching(self):
-        """부분적 과제 번호 매칭 테스트 (현재 regex 동작)"""
-        # 현재 regex는 hw21에서 hw2를 추출함 (의도된 동작인지 확인 필요)
-        partial_cases = [
-            ("/workspace/os-1-123/hw21/main.c", "hw2"),  # hw21에서 hw2 추출
-            ("/workspace/os-1-123/hw99/main.c", "hw9"),  # hw99에서 hw9 추출
+    def test_out_of_range_homework_numbers_rejected(self):
+        """범위 밖 과제 번호가 올바르게 거부되는지 테스트"""
+        out_of_range_paths = [
+            "/workspace/os-1-123/hw16/main.c",
+            "/workspace/os-1-123/hw21/main.c",
+            "/workspace/os-1-123/hw99/main.c",
         ]
-        
-        for path, expected in partial_cases:
+
+        for path in out_of_range_paths:
             result = self.parser.parse(path)
-            assert result == expected, f"Partial matching failed for '{path}', expected '{expected}', got '{result}'"
+            assert result is None, f"Should return None for out-of-range homework: '{path}', got '{result}'"
     
     def test_invalid_workspace_structure(self):
         """유효하지 않은 workspace 구조 테스트"""
