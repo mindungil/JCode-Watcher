@@ -32,6 +32,9 @@ path_test_cases = [
     ("lib 디렉토리", "/watcher/codes/algo-3-202212345/hw10/lib/util.cpp", False),
     (".git 디렉토리", "/watcher/codes/class-1-202012345/hw1/.git/config", False),
     ("숨김 파일", "/watcher/codes/class-1-202012345/hw1/.DS_Store", False),
+    # prac 경로 제외
+    ("prac1 경로 제외", "/watcher/codes/class-1-202012345/prac1/test.c", False),
+    ("prac10 경로 제외", "/watcher/codes/os-2-202112345/prac10/main.py", False),
     # 잘못된 과제 번호
     ("유효한 hw 번호 (hw11)", "/watcher/codes/class-1-202012345/hw11/test.c", True),
     ("잘못된 hw 번호 (hw16)", "/watcher/codes/class-1-202012345/hw16/test.c", False),
