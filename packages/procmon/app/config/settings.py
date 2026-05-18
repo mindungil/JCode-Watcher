@@ -7,6 +7,7 @@ class Settings(BaseSettings):
 
     LOG_LEVEL: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
     API_SERVER: str = "http://localhost:8000"
+    # HW_MAX_COUNT: deprecated - 동적 워크스페이스에서는 사용하지 않음
 
     # 메트릭 설정
     METRICS_PORT: int = 3000
