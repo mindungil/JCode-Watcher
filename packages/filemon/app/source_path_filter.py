@@ -67,11 +67,9 @@ class PathFilter:
             if len(class_student_parts) != 3:
                 return False
 
-            # 2. 과제 폴더 검사 (예: hw1, hw10, prac 제외)
+            # 2. 과제 폴더 검사 (동적 과제명 허용, 숨김 디렉토리 제외)
             hw_part = parts[1]
-            if hw_part.startswith("prac"):
-                return False
-            if not (hw_part.startswith("hw") and hw_part[2:].isdigit() and 0 <= int(hw_part[2:]) <= settings.HW_MAX_COUNT):
+            if not hw_part or hw_part.startswith('.'):
                 return False
 
             # 3. 파일 확장자 검사
