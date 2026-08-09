@@ -11,6 +11,11 @@ from middleware import PrometheusMiddleware
 
 app = FastAPI()
 
+
+@app.get("/health")
+def health():
+    return {"status": "UP"}
+
 # CORS 설정
 app.add_middleware(
     CORSMiddleware,

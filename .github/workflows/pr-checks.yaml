@@ -1,0 +1,32 @@
+name: PR checks
+
+on:
+  pull_request:
+    branches: [develop]
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+          cache: pip
+          cache-dependency-path: packages/backend/requirements.txt
+      - run: python -m pip install -r packages/backend/requirements.txt pytest
+      - run: PYTHONPATH=packages/backend python -m pytest -q packages/backend/tests
+
+  collectors:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: uv run --project packages/filemon pytest -q packages/filemon/tests
+      - run: uv run --project packages/procmon pytest -q packages/procmon/tests
+

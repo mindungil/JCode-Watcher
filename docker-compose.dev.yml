@@ -28,14 +28,15 @@ services:
       context: ./packages/filemon
       dockerfile: Dockerfile
     ports:
-      - "9090:9090"
+      - "9090:3000"
     volumes:
       - ./dev-workspace:/watcher/codes:ro
       - ./dev-data/filemon-snapshots:/watcher/snapshots
       - ./packages/filemon/src:/app/src
     environment:
-      - WATCHER_LOG_LEVEL=DEBUG
-      - WATCHER_API_URL=http://watcher-backend:3000
+      - LOG_LEVEL=DEBUG
+      - API_SERVER=http://watcher-backend:3000
+      - METRICS_PORT=3000
       - PYTHONUNBUFFERED=1
     depends_on:
       watcher-backend:
@@ -48,15 +49,16 @@ services:
       context: ./packages/procmon
       dockerfile: Dockerfile
     ports:
-      - "9091:9090"
+      - "9091:3000"
     volumes:
       - ./packages/procmon/src:/app/src
       - /sys/kernel/debug:/sys/kernel/debug:ro
       - /lib/modules:/lib/modules:ro
       - /usr/src:/usr/src:ro
     environment:
-      - API_ENDPOINT=http://watcher-backend:3000
+      - API_SERVER=http://watcher-backend:3000
       - LOG_LEVEL=DEBUG
+      - METRICS_PORT=3000
       - PYTHONUNBUFFERED=1
     cap_add:
       - SYS_ADMIN
@@ -86,4 +88,4 @@ services:
 
 networks:
   default:
-    name: watcher-dev-network 
+    name: watcher-dev-network

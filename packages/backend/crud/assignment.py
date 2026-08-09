@@ -5,16 +5,16 @@ from models.buildLog import BuildLog
 from models.runLog import RunLog
 from datetime import datetime
 
-def get_monitoring_data(db: Session, class_div: str, hw_name: str):
+def get_monitoring_data(db: Session, class_div: str, hw_name: str, limit: int = 50000):
     statement = (
         select(Snapshot)
         .where(Snapshot.class_div == class_div)
         .where(Snapshot.hw_name == hw_name)
     )
-    results = db.exec(statement).all()
+    results = db.exec(statement.order_by(Snapshot.timestamp.desc()).limit(limit)).all()
     return results
 
-def get_graph_data(db: Session, class_div: str, hw_name: str, start: datetime, end: datetime):
+def get_graph_data(db: Session, class_div: str, hw_name: str, start: datetime, end: datetime, limit: int = 50000):
     statement = (
         select(Snapshot.student_id, Snapshot.filename, Snapshot.file_size, Snapshot.timestamp)
         .where(Snapshot.class_div == class_div)
@@ -23,7 +23,7 @@ def get_graph_data(db: Session, class_div: str, hw_name: str, start: datetime, e
         .where(Snapshot.timestamp <= end)
         .order_by(Snapshot.student_id, Snapshot.filename, Snapshot.timestamp)
     )
-    results = db.exec(statement).all()
+    results = db.exec(statement.limit(limit)).all()
     return results
 
 def get_build_avg(db: Session, class_div: str, hw_name: str) -> Optional[float]:
@@ -61,5 +61,5 @@ def get_run_avg(db: Session, class_div: str, hw_name: str) -> Optional[float]:
     if student > 0:
         return round(count / student, 2)
     return 0.0
-    
+
     

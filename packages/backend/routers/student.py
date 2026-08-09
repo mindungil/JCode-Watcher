@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Query, Response
 from fastapi.responses import StreamingResponse
 from pathlib import Path
 from collections import defaultdict
@@ -103,14 +103,36 @@ def json_serializer(obj):
 
 # 빌드 로그 조회
 @router.get("/api/{class_div}/{hw_name}/{student_id}/logs/build", response_model=List[BuildLogResponse])
-def get_build_log(class_div: str, hw_name: str, student_id: int, db: Session = Depends(get_session)):
-    result = fetch_build_log(db, class_div, hw_name, student_id)
-
-    return result if result else []
+def get_build_log(
+    class_div: str,
+    hw_name: str,
+    student_id: int,
+    response: Response,
+    from_time: datetime | None = Query(default=None, alias="from"),
+    to_time: datetime | None = Query(default=None, alias="to"),
+    limit: int = Query(default=200, ge=1, le=1000),
+    cursor: int | None = Query(default=None, ge=1),
+    db: Session = Depends(get_session),
+):
+    items, next_cursor = fetch_build_log(db, class_div, hw_name, student_id, from_time, to_time, limit, cursor)
+    if next_cursor is not None:
+        response.headers["X-Next-Cursor"] = str(next_cursor)
+    return items
 
 # 실행 로그 조회
 @router.get("/api/{class_div}/{hw_name}/{student_id}/logs/run", response_model=List[RunLogResponse])
-def get_run_log(class_div: str, hw_name: str, student_id: int, db: Session = Depends(get_session)):
-    result = fetch_run_log(db, class_div, hw_name, student_id)
-
-    return result if result else []
+def get_run_log(
+    class_div: str,
+    hw_name: str,
+    student_id: int,
+    response: Response,
+    from_time: datetime | None = Query(default=None, alias="from"),
+    to_time: datetime | None = Query(default=None, alias="to"),
+    limit: int = Query(default=200, ge=1, le=1000),
+    cursor: int | None = Query(default=None, ge=1),
+    db: Session = Depends(get_session),
+):
+    items, next_cursor = fetch_run_log(db, class_div, hw_name, student_id, from_time, to_time, limit, cursor)
+    if next_cursor is not None:
+        response.headers["X-Next-Cursor"] = str(next_cursor)
+    return items

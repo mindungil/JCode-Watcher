@@ -15,19 +15,28 @@ def get_snapshot_data(db: Session, class_div:str, hw_name:str, student_id:int, f
         Snapshot.filename == filename
     )
     
-    results = db.exec(statement).all()
+    results = db.exec(statement.order_by(Snapshot.timestamp.desc()).limit(10000)).all()
     return results
     
-def get_assignment_snapshots(db: Session, class_div: str, student_id: int, hw_name: str):
+def get_assignment_snapshots(db: Session, class_div: str, student_id: int, hw_name: str, limit: int = 10000):
     statement = select(Snapshot).where(
         Snapshot.class_div == class_div,
         Snapshot.student_id == student_id,
         Snapshot.hw_name == hw_name
     )
-    results = db.exec(statement).all()
+    results = db.exec(statement.order_by(Snapshot.timestamp.desc()).limit(limit)).all()
     return results
 
-def get_build_log(db: Session, class_div: str, hw_name: str, student_id: int):
+def get_build_log(
+    db: Session,
+    class_div: str,
+    hw_name: str,
+    student_id: int,
+    from_time: datetime | None = None,
+    to_time: datetime | None = None,
+    limit: int = 200,
+    cursor: int | None = None,
+):
     # 필요한 컬럼만 선택하여 데이터 전송량 감소
     statement = (
         select(
@@ -42,12 +51,27 @@ def get_build_log(db: Session, class_div: str, hw_name: str, student_id: int):
             BuildLog.class_div == class_div,
             BuildLog.hw_name == hw_name,
             BuildLog.student_id == student_id
-        ).order_by(BuildLog.timestamp.desc())
+        )
     )
-    results = db.exec(statement).all()
+    if from_time is not None:
+        statement = statement.where(BuildLog.timestamp >= from_time)
+    if to_time is not None:
+        statement = statement.where(BuildLog.timestamp <= to_time)
+    if cursor is not None:
+        statement = statement.where(BuildLog.id < cursor)
+    results = db.exec(statement.order_by(BuildLog.id.desc()).limit(limit + 1)).all()
     return results
 
-def get_run_log(db: Session, class_div: str, hw_name: str, student_id: int):
+def get_run_log(
+    db: Session,
+    class_div: str,
+    hw_name: str,
+    student_id: int,
+    from_time: datetime | None = None,
+    to_time: datetime | None = None,
+    limit: int = 200,
+    cursor: int | None = None,
+):
     # 필요한 컬럼만 선택하여 데이터 전송량 감소
     statement = (
         select(
@@ -62,9 +86,15 @@ def get_run_log(db: Session, class_div: str, hw_name: str, student_id: int):
             RunLog.class_div == class_div,
             RunLog.hw_name == hw_name,
             RunLog.student_id == student_id
-        ).order_by(RunLog.timestamp.desc())
+        )
     )
-    results = db.exec(statement).all()
+    if from_time is not None:
+        statement = statement.where(RunLog.timestamp >= from_time)
+    if to_time is not None:
+        statement = statement.where(RunLog.timestamp <= to_time)
+    if cursor is not None:
+        statement = statement.where(RunLog.id < cursor)
+    results = db.exec(statement.order_by(RunLog.id.desc()).limit(limit + 1)).all()
     return results
 
 def get_closest_snapshot(db: Session, class_div: str, hw_name: str, student_id: int, log_timestamp: datetime):
@@ -126,4 +156,3 @@ def get_closest_snapshots_batch(db: Session, class_div: str, hw_name: str, stude
     
     # 원래 타임스탬프 순서대로 결과 반환
     return [file_sizes_by_timestamp[ts.strftime("%Y%m%d_%H%M%S")] for ts in log_timestamps]
-

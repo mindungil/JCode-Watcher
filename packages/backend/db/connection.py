@@ -2,6 +2,8 @@ from sqlmodel import create_engine, SQLModel, Session
 from typing import Annotated
 from fastapi import Depends
 from models.snapshot import Snapshot
+from models.buildLog import BuildLog
+from models.runLog import RunLog
 from schemas.config import settings
 from sqlalchemy import event
 
@@ -28,6 +30,10 @@ engine = create_engine(
 
 def create_db_and_tables():
     SQLModel.metadata.create_all(engine)
+    # create_all does not add newly declared indexes to existing tables.
+    for table in (Snapshot.__table__, BuildLog.__table__, RunLog.__table__):
+        for index in table.indexes:
+            index.create(bind=engine, checkfirst=True)
     
 def insert_data():
     with Session(engine) as session:
