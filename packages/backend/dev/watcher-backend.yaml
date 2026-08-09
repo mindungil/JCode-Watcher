@@ -13,6 +13,13 @@ spec:
       labels:
         app: watcher-backend
     spec:
+      initContainers:
+        - name: wait-for-migration
+          image: watcher-backend-dev:dev
+          command: ["sh", "-c", "until test -f /app/data/.watcher-schema-v1; do sleep 2; done"]
+          volumeMounts:
+            - name: data-storage
+              mountPath: /app/data
       containers:
         - name: watcher-backend
           image: watcher-backend-dev:dev
@@ -20,6 +27,8 @@ spec:
           env:
             - name: DB_URL
               value: "sqlite:////app/data/database.db"
+            - name: AUTO_CREATE_SCHEMA
+              value: "false"
           ports:
             - containerPort: 3000
           volumeMounts:

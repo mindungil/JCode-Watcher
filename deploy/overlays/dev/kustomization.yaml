@@ -1,0 +1,24 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../base
+  - namespace.yaml
+  - registry-secret.yaml
+namespace: watcher-dev
+patches:
+  - path: collector-node-selector.yaml
+    target:
+      kind: DaemonSet
+  - path: servicemonitor-namespace.yaml
+    target:
+      kind: ServiceMonitor
+images:
+  - name: harbor.jbnu.ac.kr/jdevops/watcher-backend
+    newName: harbor.jbnu.ac.kr/jdevops/watcher-backend
+    digest: sha256:REPLACE_WITH_VERIFIED_DIGEST
+  - name: harbor.jbnu.ac.kr/jdevops/watcher-filemon
+    newName: harbor.jbnu.ac.kr/jdevops/watcher-filemon
+    digest: sha256:REPLACE_WITH_VERIFIED_DIGEST
+  - name: harbor.jbnu.ac.kr/jdevops/watcher-procmon
+    newName: harbor.jbnu.ac.kr/jdevops/watcher-procmon
+    digest: sha256:REPLACE_WITH_VERIFIED_DIGEST

@@ -1,0 +1,53 @@
+name: Verify Watcher images
+
+on:
+  workflow_dispatch:
+    inputs:
+      backend_digest:
+        description: "Backend digest verified in dev"
+        required: true
+        type: string
+      filemon_digest:
+        description: "Filemon digest verified in dev"
+        required: true
+        type: string
+      procmon_digest:
+        description: "Procmon digest verified in dev"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: harbor.jbnu.ac.kr
+          username: ${{ secrets.HARBOR_USERNAME }}
+          password: ${{ secrets.HARBOR_PASSWORD }}
+      - name: Verify existing artifacts
+        env:
+          BACKEND_DIGEST: ${{ inputs.backend_digest }}
+          FILEMON_DIGEST: ${{ inputs.filemon_digest }}
+          PROCMON_DIGEST: ${{ inputs.procmon_digest }}
+        run: |
+          for entry in \
+            "watcher-backend:${BACKEND_DIGEST}" \
+            "watcher-filemon:${FILEMON_DIGEST}" \
+            "watcher-procmon:${PROCMON_DIGEST}"; do
+            component="${entry%%:*}"
+            digest="${entry#*:}"
+            hex="${digest#sha256:}"
+            test "$hex" != "$digest"
+            test "${#digest}" -eq 71
+            case "$hex" in
+              *[!0-9a-f]*|'') echo "invalid digest for $component"; exit 1 ;;
+            esac
+            image="harbor.jbnu.ac.kr/jdevops/${component}@${digest}"
+            docker buildx imagetools inspect "$image"
+            echo "$component=$image" >> "$GITHUB_STEP_SUMMARY"
+          done

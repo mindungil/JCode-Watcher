@@ -1,0 +1,14 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: unused
+spec:
+  template:
+    spec:
+      nodeSelector:
+        jcode.dev/collector: "true"
+      tolerations:
+      - key: dev-node
+        operator: Equal
+        value: "true"
+        effect: NoSchedule

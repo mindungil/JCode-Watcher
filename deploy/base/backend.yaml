@@ -13,6 +13,15 @@ spec:
       labels:
         app: watcher-backend
     spec:
+      imagePullSecrets:
+        - name: watcher-harbor-registry-secret
+      initContainers:
+        - name: wait-for-migration
+          image: harbor.jbnu.ac.kr/jdevops/watcher-backend:20250729-1
+          command: ["sh", "-c", "until test -f /app/data/.watcher-schema-v1; do sleep 2; done"]
+          volumeMounts:
+            - name: data-storage
+              mountPath: /app/data
       containers:
         - name: watcher-backend
           image: harbor.jbnu.ac.kr/jdevops/watcher-backend:20250729-1
@@ -20,11 +29,25 @@ spec:
           env:
             - name: DB_URL
               value: "sqlite:////app/data/database.db"
+            - name: AUTO_CREATE_SCHEMA
+              value: "false"
           ports:
             - containerPort: 3000
           volumeMounts:
             - name: data-storage
               mountPath: /app/data
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 3
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 15
+            periodSeconds: 20
       volumes:
         - name: data-storage
           persistentVolumeClaim:

@@ -12,6 +12,7 @@ services:
       - ./dev-data/backend-db:/app/data
       - ./packages/backend/src:/app/src
     environment:
+      - AUTO_CREATE_SCHEMA=true
       - NODE_ENV=development
       - DB_URL=sqlite:////app/data/watcher.db
       - LOG_LEVEL=debug

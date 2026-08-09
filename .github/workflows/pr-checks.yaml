@@ -30,3 +30,22 @@ jobs:
       - run: uv run --project packages/filemon pytest -q packages/filemon/tests
       - run: uv run --project packages/procmon pytest -q packages/procmon/tests
 
+  manifests:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-kubectl@v4
+      - name: Render dev and production manifests
+        run: |
+          kubectl kustomize deploy/overlays/dev > /tmp/watcher-dev.yaml
+          kubectl kustomize deploy/overlays/production > /tmp/watcher-production.yaml
+      - name: Verify collector contract
+        run: |
+          for rendered in /tmp/watcher-dev.yaml /tmp/watcher-production.yaml; do
+            test "$(grep -c '^kind: DaemonSet$' "$rendered")" -eq 2
+            if grep -Eq 'containerPort: 9090|targetPort: 9090|port: 9090|METRICS_PORT.*9090' "$rendered"; then
+              exit 1
+            fi
+            grep -q 'name: METRICS_PORT' "$rendered"
+            grep -q 'value: "3000"' "$rendered"
+          done
