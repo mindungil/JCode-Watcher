@@ -7,9 +7,16 @@ from routers.snapshot import router as snapshot_router
 from routers.selection import router as selection_router
 from routers.log import router as log_router
 from routers.metric import router as metric_router
+from routers.dashboard import router as dashboard_router
 from middleware import PrometheusMiddleware
+from schemas.config import settings
 
 app = FastAPI()
+
+
+@app.get("/health")
+def health():
+    return {"status": "UP"}
 
 # CORS 설정
 app.add_middleware(
@@ -25,7 +32,8 @@ app.add_middleware(PrometheusMiddleware)
 # 앱 시작 시 DB 테이블 생성
 @app.on_event("startup")
 def on_startup():
-    create_db_and_tables()
+    if settings.AUTO_CREATE_SCHEMA:
+        create_db_and_tables()
     # insert_data()
 
 # 라우터 포함
@@ -35,3 +43,4 @@ app.include_router(assignment_router, tags=["Assignment"])
 app.include_router(snapshot_router, tags=["Snapshot"])
 app.include_router(selection_router, tags=["Selection"])
 app.include_router(metric_router, tags=["Metric"])
+app.include_router(dashboard_router, tags=["Dashboard"])
