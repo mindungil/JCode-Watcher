@@ -14,6 +14,21 @@ patches:
     target:
       kind: ServiceMonitor
   - target:
+      kind: Deployment
+      name: watcher-backend
+    patch: |-
+      - op: add
+        path: /spec/template/spec/nodeSelector
+        value:
+          env: dev
+      - op: add
+        path: /spec/template/spec/tolerations
+        value:
+          - key: dev-node
+            operator: Equal
+            value: "true"
+            effect: NoSchedule
+  - target:
       kind: PersistentVolumeClaim
       name: watcher-backend-pvc
     patch: |-
