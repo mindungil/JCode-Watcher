@@ -33,7 +33,6 @@ def migrate() -> None:
             connection.execute(text("PRAGMA busy_timeout=60000"))
             for statement in MIGRATIONS:
                 connection.execute(text(statement))
-        lock_path.with_name(".watcher-schema-v1").write_text("ready\n", encoding="utf-8")
 
 
 if __name__ == "__main__":

@@ -39,6 +39,8 @@ jobs:
         run: |
           kubectl kustomize deploy/overlays/dev > /tmp/watcher-dev.yaml
           kubectl kustomize deploy/overlays/production > /tmp/watcher-production.yaml
+          kubectl kustomize deploy/migration/overlays/dev > /tmp/watcher-migration-dev.yaml
+          kubectl kustomize deploy/migration/overlays/production > /tmp/watcher-migration-production.yaml
       - name: Verify collector contract
         run: |
           for rendered in /tmp/watcher-dev.yaml /tmp/watcher-production.yaml; do
@@ -49,3 +51,17 @@ jobs:
             grep -q 'name: METRICS_PORT' "$rendered"
             grep -q 'value: "3000"' "$rendered"
           done
+      - name: Verify deployment safety contract
+        run: |
+          grep -q 'replicas: 1' /tmp/watcher-production.yaml
+          if grep -q 'replicas: 2' /tmp/watcher-production.yaml; then exit 1; fi
+          grep -q 'claimName: jcode-vol-pvc' /tmp/watcher-dev.yaml
+          if grep -q 'pvc-5ba357bc' /tmp/watcher-dev.yaml; then exit 1; fi
+          if grep -R -q 'watcher-schema' deploy packages/backend; then exit 1; fi
+          bash -n deploy/deploy.sh
+          python deploy/set-image-digests.py dev \
+            sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa \
+            sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb \
+            sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+          kubectl kustomize deploy/overlays/dev | grep -q 'watcher-backend@sha256:aaaaaaaa'
+          kubectl kustomize deploy/migration/overlays/dev | grep -q 'watcher-backend@sha256:aaaaaaaa'

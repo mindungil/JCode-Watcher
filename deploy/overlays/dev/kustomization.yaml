@@ -4,6 +4,7 @@ resources:
   - ../../base
   - namespace.yaml
   - registry-secret.yaml
+  - workspace-pvc.yaml
 namespace: watcher-dev
 patches:
   - path: collector-node-selector.yaml

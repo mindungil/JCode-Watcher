@@ -3,6 +3,11 @@ name: Verify Watcher images
 on:
   workflow_dispatch:
     inputs:
+      target:
+        description: "Deployment environment"
+        required: true
+        type: choice
+        options: [dev, production]
       backend_digest:
         description: "Backend digest verified in dev"
         required: true
@@ -51,3 +56,24 @@ jobs:
             docker buildx imagetools inspect "$image"
             echo "$component=$image" >> "$GITHUB_STEP_SUMMARY"
           done
+
+  deploy:
+    needs: verify
+    runs-on: ubuntu-22.04
+    environment: ${{ inputs.target }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-kubectl@v4
+      - uses: azure/k8s-set-context@v4
+        with:
+          method: kubeconfig
+          kubeconfig: ${{ secrets.KUBE_CONFIG }}
+      - name: Pin verified digests
+        run: |
+          python deploy/set-image-digests.py \
+            "${{ inputs.target }}" \
+            "${{ inputs.backend_digest }}" \
+            "${{ inputs.filemon_digest }}" \
+            "${{ inputs.procmon_digest }}"
+      - name: Run migration and deploy
+        run: deploy/deploy.sh "${{ inputs.target }}"

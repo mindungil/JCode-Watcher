@@ -15,13 +15,6 @@ spec:
     spec:
       imagePullSecrets:
         - name: watcher-harbor-registry-secret
-      initContainers:
-        - name: wait-for-migration
-          image: harbor.jbnu.ac.kr/jdevops/watcher-backend:20250729-1
-          command: ["sh", "-c", "until test -f /app/data/.watcher-schema-v1; do sleep 2; done"]
-          volumeMounts:
-            - name: data-storage
-              mountPath: /app/data
       containers:
         - name: watcher-backend
           image: harbor.jbnu.ac.kr/jdevops/watcher-backend:20250729-1
