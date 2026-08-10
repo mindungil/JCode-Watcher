@@ -2,6 +2,8 @@ from sqlmodel import create_engine, SQLModel, Session
 from typing import Annotated
 from fastapi import Depends
 from models.snapshot import Snapshot
+from models.buildLog import BuildLog
+from models.runLog import RunLog
 from schemas.config import settings
 from sqlalchemy import event
 

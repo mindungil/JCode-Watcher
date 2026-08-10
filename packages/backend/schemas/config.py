@@ -7,6 +7,7 @@ ENV_PATH = DIR / ".env"
 
 class Settings(BaseSettings):
     DB_URL: str
+    AUTO_CREATE_SCHEMA: bool = False
     
     model_config = SettingsConfigDict(
         env_file=str(ENV_PATH)
