@@ -6,9 +6,4 @@ spec:
   template:
     spec:
       nodeSelector:
-        jcode.dev/collector: "true"
-      tolerations:
-      - key: dev-node
-        operator: Equal
-        value: "true"
-        effect: NoSchedule
+        env: dev

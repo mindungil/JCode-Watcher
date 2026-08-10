@@ -8,5 +8,5 @@ spec:
     - ReadWriteMany  # RWX 모드 적용
   resources:
     requests:
-      storage: 5Gi
+      storage: 50Gi
   storageClassName: longhorn  # Longhorn 스토리지 클래스 사용

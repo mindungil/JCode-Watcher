@@ -5,7 +5,7 @@ resources:
   - namespace.yaml
   - registry-secret.yaml
   - workspace-pvc.yaml
-namespace: watcher-dev
+namespace: dev
 patches:
   - path: collector-node-selector.yaml
     target:
@@ -13,6 +13,46 @@ patches:
   - path: servicemonitor-namespace.yaml
     target:
       kind: ServiceMonitor
+  - target:
+      kind: PersistentVolumeClaim
+      name: watcher-backend-pvc
+    patch: |-
+      - op: replace
+        path: /spec/storageClassName
+        value: nfs-dev
+      - op: replace
+        path: /spec/resources/requests/storage
+        value: 5Gi
+  - target:
+      kind: PersistentVolumeClaim
+      name: watcher-filemon-pvc
+    patch: |-
+      - op: replace
+        path: /spec/storageClassName
+        value: nfs-dev
+      - op: replace
+        path: /spec/resources/requests/storage
+        value: 5Gi
+  - target:
+      kind: PersistentVolumeClaim
+      name: watcher-filemon-logs-pvc
+    patch: |-
+      - op: replace
+        path: /spec/storageClassName
+        value: nfs-dev
+      - op: replace
+        path: /spec/resources/requests/storage
+        value: 1Gi
+  - target:
+      kind: PersistentVolumeClaim
+      name: watcher-procmon-logs-pvc
+    patch: |-
+      - op: replace
+        path: /spec/storageClassName
+        value: nfs-dev
+      - op: replace
+        path: /spec/resources/requests/storage
+        value: 1Gi
 images:
   - name: harbor.jbnu.ac.kr/jdevops/watcher-backend
     newName: harbor.jbnu.ac.kr/jdevops/watcher-backend
