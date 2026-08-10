@@ -8,6 +8,7 @@ from datetime import datetime
 import pytz
 from crud.log import build_register, run_register
 from schemas.log import BuildLogCreate, RunLogCreate
+from utils.cache import invalidate_log_cache
 
 router = APIRouter(tags=["Log"])
 kst = pytz.timezone('Asia/Seoul')
@@ -36,6 +37,7 @@ def register_build_log(
     }
     
     build_log = build_register(db=db, build_data=build_data)
+    invalidate_log_cache("build", class_div, hw_name, student_id)
     # print(build_log)
     return {"message": "Build log registered successfully"}
     
@@ -64,5 +66,6 @@ def register_run_log(
     }
     
     run_log = run_register(db=db, run_data=run_data)
+    invalidate_log_cache("run", class_div, hw_name, student_id)
     # print(run_log)
     return {"message": "Run log registered successfully"}

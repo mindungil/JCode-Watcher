@@ -7,7 +7,7 @@ from fastapi import HTTPException
 import pytz
 from collections import defaultdict
 from schemas.student import BuildLogResponse, RunLogResponse
-from utils.cache import cached
+from utils.cache import cache, log_cache_key
 
 def format_timestamp(timestamp: str) -> str:
     return datetime.strptime(timestamp, "%Y%m%d_%H%M%S").strftime("%Y-%m-%d %H:%M:%S")
@@ -152,16 +152,30 @@ async def graph_data_by_minutes(db: Session, class_div: str, hw_name: str, stude
 
     return {"trends": trends}
 
-@cached(ttl=600)
-def fetch_build_log(db: Session, class_div: str, hw_name: str, student_id: int) -> list[BuildLogResponse]:
-    results = get_build_log(db, class_div, hw_name, student_id)
+def fetch_build_log(
+    db: Session,
+    class_div: str,
+    hw_name: str,
+    student_id: int,
+    from_time: datetime | None = None,
+    to_time: datetime | None = None,
+    limit: int = 200,
+    cursor: int | None = None,
+) -> tuple[list[BuildLogResponse], int | None]:
+    key = log_cache_key("build", class_div, hw_name, student_id, from_time, to_time, limit, cursor)
+    cached_result = cache.get(key)
+    if cached_result is not None:
+        return cached_result
+    results = get_build_log(db, class_div, hw_name, student_id, from_time, to_time, limit, cursor)
+    has_more = len(results) > limit
+    page = results[:limit]
     
     # 모든 타임스탬프를 한 번에 처리
     # timestamps = [result.timestamp for result in results]
     # file_sizes = get_closest_snapshots_batch(db, class_div, hw_name, student_id, timestamps)
     
     # 결과 생성 - 리스트 컴프리헨션 사용
-    return [
+    items = [
         BuildLogResponse(
             exit_code=result.exit_code,
             cmdline=result.cmdline,
@@ -172,19 +186,36 @@ def fetch_build_log(db: Session, class_div: str, hw_name: str, student_id: int) 
             # file_size=file_sizes[i]
             file_size=0
         )
-        for i, result in enumerate(results)
+        for result in page
     ]
+    value = (items, page[-1].id if has_more and page else None)
+    cache.set(key, value, ttl=60)
+    return value
 
-@cached(ttl=600)
-def fetch_run_log(db: Session, class_div: str, hw_name: str, student_id: int) -> list[RunLogResponse]:
-    results = get_run_log(db, class_div, hw_name, student_id)
+def fetch_run_log(
+    db: Session,
+    class_div: str,
+    hw_name: str,
+    student_id: int,
+    from_time: datetime | None = None,
+    to_time: datetime | None = None,
+    limit: int = 200,
+    cursor: int | None = None,
+) -> tuple[list[RunLogResponse], int | None]:
+    key = log_cache_key("run", class_div, hw_name, student_id, from_time, to_time, limit, cursor)
+    cached_result = cache.get(key)
+    if cached_result is not None:
+        return cached_result
+    results = get_run_log(db, class_div, hw_name, student_id, from_time, to_time, limit, cursor)
+    has_more = len(results) > limit
+    page = results[:limit]
 
     # 모든 타임스탬프를 한 번에 처리
     # timestamps = [result.timestamp for result in results]
     # file_sizes = get_closest_snapshots_batch(db, class_div, hw_name, student_id, timestamps)
     
     # 결과 생성 - 리스트 컴프리헨션 사용
-    return [
+    items = [
         RunLogResponse(
             cmdline=result.cmdline,
             exit_code=result.exit_code,
@@ -195,5 +226,8 @@ def fetch_run_log(db: Session, class_div: str, hw_name: str, student_id: int) ->
             # file_size=file_sizes[i]
             file_size=0
         )
-        for i, result in enumerate(results)
+        for result in page
     ]
+    value = (items, page[-1].id if has_more and page else None)
+    cache.set(key, value, ttl=60)
+    return value

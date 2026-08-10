@@ -18,14 +18,14 @@ JCode 플랫폼의 학습자 모니터링을 위한 Watcher 시스템을 Kuberne
 **2. watcher-filemon**
 
 - 역할: 각 노드에서 학생 워크스페이스의 파일 변경을 감지
-- 포트: 9090번 (Prometheus 메트릭)
+- 포트: 3000번 (Prometheus 메트릭)
 - 스토리지: 파일 스냅샷 저장용 PVC + WebIDE workspace NFS 볼륨 접근 권한
 - 배포 방식: 모든 워커 노드에 1개씩 배포
 
 **3. watcher-procmon**
 
 - 역할: 각 노드에서 gcc, python 등의 프로세스 실행을 eBPF로 추적
-- 포트: 9090번 (Prometheus 메트릭)
+- 포트: 3000번 (Prometheus 메트릭)
 - 특수 권한: hostPID=true, SYS_ADMIN/SYS_PTRACE capabilities 필요
 - 배포 방식: 모든 워커 노드에 1개씩 배포
 
@@ -319,7 +319,7 @@ spec:
 
 배포하기 전에 각 서비스의 매니페스트 파일이 올바르게 설정되어 있는지 확인하고 필요시 수정하세요.
 
-**1. watcher-backend 환경변수 (`packages/backend/watcher-backend.yaml`)**
+**1. watcher-backend 환경변수 (`deploy/base/backend.yaml`)**
 
 ```yaml
 env:
@@ -390,7 +390,7 @@ image: harbor.jbnu.ac.kr/jdevops/watcher-backend:<VERSION_TAG>
 
 ```bash
 # 백엔드 API 서버 배포 (포트 3000)
-kubectl apply -f packages/backend/watcher-backend.yaml
+kubectl apply -k deploy/overlays/production
 kubectl apply -f packages/filemon/watcher-filemon.yaml
 kubectl apply -f packages/procmon/watcher-procmon.yaml
 ```
@@ -424,8 +424,8 @@ pod/watcher-procmon-cncxp     1/1    Running  0         1h     10.233.80.137   k
 
 NAME                              TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)             AGE   SELECTOR
 service/watcher-backend-service   ClusterIP   10.233.7.252    <none>        3000/TCP            1h    app=watcher-backend
-service/watcher-filemon           ClusterIP   10.233.43.186   <none>        9090/TCP            1h    app=watcher-filemon
-service/watcher-procmon           ClusterIP   10.233.26.203   <none>        9090/TCP            1h    app=watcher-procmon
+service/watcher-filemon           ClusterIP   10.233.43.186   <none>        3000/TCP            1h    app=watcher-filemon
+service/watcher-procmon           ClusterIP   10.233.26.203   <none>        3000/TCP            1h    app=watcher-procmon
 
 NAME                             DESIRED   CURRENT   READY   UP-TO-DATE   AVAILABLE   AGE
 daemonset.apps/watcher-filemon   5         5         5       5            5           14h
@@ -670,10 +670,10 @@ kubectl delete pod test-webide-pod -n watcher
 파일 모니터링 서비스의 메트릭을 로컬에서 확인할 수 있습니다:
 
 ```bash
-kubectl port-forward -n watcher service/watcher-filemon 9090:9090
+kubectl port-forward -n watcher service/watcher-filemon 3000:3000
 ```
 
-다른 터미널에서 브라우저를 열고 `http://localhost:9090/metrics`에 접속하세요. 다음과 같은 메트릭들을 확인할 수 있습니다:
+다른 터미널에서 브라우저를 열고 `http://localhost:3000/metrics`에 접속하세요. 다음과 같은 메트릭들을 확인할 수 있습니다:
 
 ```
 # HELP file_events_total Total number of file events detected
