@@ -14,9 +14,12 @@ spec:
         app: watcher-backend
     spec:
       initContainers:
-        - name: wait-for-migration
+        - name: migrate
           image: watcher-backend-dev:dev
-          command: ["sh", "-c", "until test -f /app/data/.watcher-schema-v1; do sleep 2; done"]
+          command: ["python", "-m", "db.migrate"]
+          env:
+            - name: DB_URL
+              value: "sqlite:////app/data/database.db"
           volumeMounts:
             - name: data-storage
               mountPath: /app/data
