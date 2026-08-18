@@ -1,8 +1,9 @@
-import re
 import os
-from app.utils.logger import get_logger
-from typing import Optional
+import re
 from pathlib import Path
+from typing import Optional
+
+from app.utils.logger import get_logger
 from app.utils.patterns import WORKSPACE_PATH_REGEX
 
 
@@ -46,3 +47,10 @@ class PathParser:
         hw_dir = match.group(3) or match.group(4)
         self.logger.debug("PathParser 파싱 성공", path=normalized, homework_dir=hw_dir)
         return hw_dir
+
+    @staticmethod
+    def assignment_id(homework_dir: str) -> int:
+        match = re.fullmatch(r"assignment-(\d+)", homework_dir)
+        if not match:
+            raise ValueError(f"과제 디렉터리에 불변 식별자가 없습니다: {homework_dir}")
+        return int(match.group(1))

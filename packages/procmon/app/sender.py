@@ -1,20 +1,28 @@
-import aiohttp
 import time
-from app.utils.logger import get_logger
-from app.utils.metrics import record_api_request, record_api_duration
-from typing import Dict, Any, Optional
+from typing import Any, Dict
+
+import aiohttp
+
+from app.course_resolver import CourseIdResolver
 from app.models.event import Event
-from app.models.process import Process
 from app.models.process_type import ProcessType
+from app.utils.logger import get_logger
+from app.utils.metrics import record_api_duration, record_api_request
 
 
 class EventSender:
     """Event를 백엔드 API로 전송하는 클라이언트"""
 
-    def __init__(self, base_url: str, timeout: int = 20):
+    def __init__(
+        self,
+        base_url: str,
+        timeout: int = 20,
+        course_resolver: CourseIdResolver | None = None,
+    ):
         self.logger = get_logger("sender")
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
+        self.course_resolver = course_resolver or CourseIdResolver()
 
     async def send_event(self, event: Event) -> bool:
         """Event 타입에 따라 적절한 API로 전송"""
@@ -32,7 +40,7 @@ class EventSender:
                 )
                 return False
 
-        except Exception as e:
+        except Exception:
             self.logger.error("이벤트 전송 실패", exc_info=True)
             return False
 
@@ -45,9 +53,7 @@ class EventSender:
 
     async def _send_execution(self, event: Event) -> bool:
         """실행 이벤트 전송 (USER_BINARY, PYTHON)"""
-        endpoint = (
-            f"/api/{event.class_div}/{event.homework_dir}/{event.student_id}/logs/run"
-        )
+        endpoint = "/api/v2/events/run"
 
         # PYTHON vs USER_BINARY에 따른 process_type 결정
         process_type = (
@@ -56,7 +62,7 @@ class EventSender:
         target_path = event.source_file if event.source_file else event.binary_path
 
         data = {
-            "timestamp": event.timestamp.isoformat() if event.timestamp else None,
+            **await self._identity(event),
             "exit_code": event.exit_code,
             "cmdline": " ".join(event.args) if event.args else "",
             "cwd": event.cwd,
@@ -68,12 +74,10 @@ class EventSender:
 
     async def _send_compilation(self, event: Event) -> bool:
         """컴파일 이벤트 전송 (GCC, CLANG, GPP)"""
-        endpoint = (
-            f"/api/{event.class_div}/{event.homework_dir}/{event.student_id}/logs/build"
-        )
+        endpoint = "/api/v2/events/build"
 
         data = {
-            "timestamp": event.timestamp.isoformat() if event.timestamp else None,
+            **await self._identity(event),
             "exit_code": event.exit_code,
             "cmdline": " ".join(event.args) if event.args else "",
             "cwd": event.cwd,
@@ -83,11 +87,22 @@ class EventSender:
 
         return await self._send_request(endpoint, data)
 
+    async def _identity(self, event: Event) -> Dict[str, Any]:
+        return {
+            "event_id": str(event.event_id),
+            "course_id": await self.course_resolver.resolve(event.class_div),
+            "assignment_id": event.assignment_id,
+            "student_key": event.student_id,
+            "class_div": event.class_div,
+            "hw_name": event.homework_dir,
+            "occurred_at": event.timestamp.isoformat(),
+        }
+
     async def _send_request(self, endpoint: str, data: Dict[str, Any]) -> bool:
         """HTTP 요청 전송"""
         start_time = time.time()
         endpoint_type = "build" if "/build" in endpoint else "run"
-        
+
         try:
             self.logger.debug("API 요청 시작", endpoint=endpoint, data=data)
 
@@ -97,7 +112,7 @@ class EventSender:
                 ) as response:
                     # API 요청 결과 메트릭 기록
                     record_api_request(str(response.status), endpoint_type)
-                    
+
                     if response.status >= 400:
                         error_text = await response.text()
                         self.logger.error(
@@ -108,12 +123,12 @@ class EventSender:
                     self.logger.info("API 요청 성공", endpoint=endpoint)
                     return True
 
-        except Exception as e:
-            # 예외 발생 시에도 메트릭 기록 
+        except Exception:
+            # 예외 발생 시에도 메트릭 기록
             record_api_request("error", endpoint_type)
             self.logger.error("HTTP 요청 실패", endpoint=endpoint, exc_info=True)
             return False
-        
+
         finally:
             # 성공/실패 관계없이 레이턴시 메트릭 기록
             duration = time.time() - start_time

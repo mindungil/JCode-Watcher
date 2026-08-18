@@ -7,3 +7,8 @@ spec:
     spec:
       nodeSelector:
         env: dev
+      tolerations:
+        - key: dev-node
+          operator: Equal
+          value: "true"
+          effect: NoSchedule

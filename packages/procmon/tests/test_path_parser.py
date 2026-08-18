@@ -1,5 +1,6 @@
-import pytest
 from pathlib import Path
+
+import pytest
 from app.path_parser import PathParser
 
 
@@ -17,13 +18,18 @@ class TestPathParser:
             ("/workspace/a-2-123456789/정렬-알고리즘/test.py", "정렬-알고리즘"),
             ("/workspace/linux-10-987654321/sorting-algorithm", "sorting-algorithm"),
             ("/workspace/sys-5-111222333/과제1/project", "과제1"),
-            ("/workspace/net-1-555666777/hw3-linked-list/src/main.c", "hw3-linked-list"),
+            (
+                "/workspace/net-1-555666777/hw3-linked-list/src/main.c",
+                "hw3-linked-list",
+            ),
             ("/workspace/os-1-202012345/연결 리스트/main.c", "연결 리스트"),
         ]
 
         for path, expected in test_cases:
             result = self.parser.parse(path)
-            assert result == expected, f"Failed to parse '{path}', expected '{expected}', got '{result}'"
+            assert result == expected, (
+                f"Failed to parse '{path}', expected '{expected}', got '{result}'"
+            )
 
     def test_valid_home_coder_paths(self):
         """유효한 /home/coder/project 경로 테스트"""
@@ -36,16 +42,18 @@ class TestPathParser:
 
         for path, expected in test_cases:
             result = self.parser.parse(path)
-            assert result == expected, f"Failed to parse '{path}', expected '{expected}', got '{result}'"
+            assert result == expected, (
+                f"Failed to parse '{path}', expected '{expected}', got '{result}'"
+            )
 
     def test_invalid_workspace_structure(self):
         """유효하지 않은 workspace 구조 테스트"""
         invalid_paths = [
-            "/workspace/hw1/main.c",              # 중간에 클래스-번호-ID 구조가 없음
-            "/workspace/invalid-format/hw1/main.c", # 잘못된 형식
-            "/workspace/os/hw1/main.c",           # 번호가 없음
-            "/workspace/os-1/hw1/main.c",         # ID가 없음
-            "/different/path/hw1/main.c",         # workspace가 아님
+            "/workspace/hw1/main.c",  # 중간에 클래스-번호-ID 구조가 없음
+            "/workspace/invalid-format/hw1/main.c",  # 잘못된 형식
+            "/workspace/os/hw1/main.c",  # 번호가 없음
+            "/workspace/os-1/hw1/main.c",  # ID가 없음
+            "/different/path/hw1/main.c",  # workspace가 아님
         ]
 
         for path in invalid_paths:
@@ -135,7 +143,9 @@ class TestPathParser:
 
         for path, expected in test_cases:
             result = self.parser.parse(path)
-            assert result == expected, f"Failed to parse alphanumeric subject code '{path}'"
+            assert result == expected, (
+                f"Failed to parse alphanumeric subject code '{path}'"
+            )
 
     def test_empty_and_whitespace_paths(self):
         """빈 문자열과 공백 경로 테스트"""
@@ -148,6 +158,11 @@ class TestPathParser:
         for path in root_paths:
             result = self.parser.parse(path)
             assert result is None, f"Should return None for root path: '{path}'"
+
+    def test_assignment_id_requires_immutable_directory(self):
+        assert self.parser.assignment_id("assignment-42") == 42
+        with pytest.raises(ValueError, match="불변 식별자"):
+            self.parser.assignment_id("hw1")
 
 
 if __name__ == "__main__":
