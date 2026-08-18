@@ -9,6 +9,7 @@ from fastapi import HTTPException
 from schemas.student import BuildLogResponse, RunLogResponse
 from sqlmodel import Session
 from utils.cache import cache, log_cache_key
+from utils.cursor import encode_event_cursor
 
 
 def calculate_snapshot_avg(
@@ -67,8 +68,8 @@ def fetch_build_log(
     from_time=None,
     to_time=None,
     limit: int = 200,
-    cursor: int | None = None,
-) -> tuple[list[BuildLogResponse], int | None]:
+    cursor: str | None = None,
+) -> tuple[list[BuildLogResponse], str | None]:
     key = log_cache_key(
         "build", class_div, hw_name, student_id, from_time, to_time, limit, cursor
     )
@@ -92,7 +93,12 @@ def fetch_build_log(
         )
         for result in page
     ]
-    value = (items, page[-1].id if has_more and page else None)
+    value = (
+        items,
+        encode_event_cursor(page[-1].occurred_at, page[-1].id)
+        if has_more and page
+        else None,
+    )
     cache.set(key, value, ttl=60)
     return value
 
@@ -105,8 +111,8 @@ def fetch_run_log(
     from_time=None,
     to_time=None,
     limit: int = 200,
-    cursor: int | None = None,
-) -> tuple[list[RunLogResponse], int | None]:
+    cursor: str | None = None,
+) -> tuple[list[RunLogResponse], str | None]:
     key = log_cache_key(
         "run", class_div, hw_name, student_id, from_time, to_time, limit, cursor
     )
@@ -130,6 +136,11 @@ def fetch_run_log(
         )
         for result in page
     ]
-    value = (items, page[-1].id if has_more and page else None)
+    value = (
+        items,
+        encode_event_cursor(page[-1].occurred_at, page[-1].id)
+        if has_more and page
+        else None,
+    )
     cache.set(key, value, ttl=60)
     return value

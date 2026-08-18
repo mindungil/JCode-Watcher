@@ -30,16 +30,18 @@ spec:
         - name: logs-volume
           mountPath: /opt/filemon/logs
         env:
+        - name: MY_NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
         - name: LOG_LEVEL
           value: "INFO"
         - name: API_SERVER
           value: "http://watcher-backend-service.watcher.svc.cluster.local:3000"
         - name: JCODE_ENVIRONMENT
           value: "prod"
-        - name: MY_NODE_NAME
-          valueFrom:
-            fieldRef:
-              fieldPath: spec.nodeName
+        - name: SPOOL_PATH
+          value: "/opt/filemon/logs/$(MY_NODE_NAME)-event-spool.db"
       imagePullSecrets:
       - name: watcher-harbor-registry-secret
       volumes:

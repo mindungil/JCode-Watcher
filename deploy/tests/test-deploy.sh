@@ -27,4 +27,4 @@ if PATH="$test_dir:$PATH" "$repo_root/deploy/deploy.sh" dev >"$test_dir/output" 
   echo "SQLite DB_URL이 거부되지 않았습니다." >&2
   exit 1
 fi
-grep -q 'postgresql+psycopg://' "$test_dir/output"
+grep -q 'PostgreSQL' "$test_dir/output"

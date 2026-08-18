@@ -1,14 +1,15 @@
 from datetime import datetime, timezone
-from unittest.mock import AsyncMock, patch
-from uuid import UUID
+from unittest.mock import AsyncMock, MagicMock, patch
+from uuid import UUID, uuid4
 
 import pytest
+from app.config.settings import settings
 from app.models.event import Event
 from app.models.process_type import ProcessType
 from app.sender import EventSender
 
 
-def make_event(process_type=ProcessType.GCC):
+def make_event(process_type=ProcessType.GCC, event_id=None):
     return Event(
         process_type=process_type,
         homework_dir="assignment-42",
@@ -16,7 +17,8 @@ def make_event(process_type=ProcessType.GCC):
         student_id="202012345",
         class_div="os-1",
         timestamp=datetime(2026, 8, 18, 12, tzinfo=timezone.utc),
-        event_id=UUID("00000000-0000-0000-0000-000000000042"),
+        event_id=event_id
+        or UUID("00000000-0000-0000-0000-000000000042"),
         source_file="/workspace/os-1-202012345/assignment-42/main.c",
         exit_code=0,
         args=["gcc", "main.c"],
@@ -25,62 +27,86 @@ def make_event(process_type=ProcessType.GCC):
     )
 
 
-@pytest.fixture
-def sender():
+def response_context(status=200, acknowledged=None):
+    response = MagicMock(status=status)
+    response.text = AsyncMock(return_value="error")
+    response.json = AsyncMock(
+        return_value={"acknowledged_event_ids": acknowledged or []}
+    )
+    post_context = MagicMock()
+    post_context.__aenter__ = AsyncMock(return_value=response)
+    post_context.__aexit__ = AsyncMock(return_value=None)
+    session = MagicMock()
+    session.post.return_value = post_context
+    session_context = MagicMock()
+    session_context.__aenter__ = AsyncMock(return_value=session)
+    session_context.__aexit__ = AsyncMock(return_value=None)
+    return session_context, session
+
+
+def sender(tmp_path):
     resolver = AsyncMock()
     resolver.resolve.return_value = 7
-    return EventSender("http://watcher", course_resolver=resolver)
-
-
-@pytest.mark.asyncio
-async def test_build_event_uses_stable_contract(sender):
-    event = make_event()
-    with patch.object(
-        sender, "_send_request", new=AsyncMock(return_value=True)
-    ) as request:
-        assert await sender.send_event(event) is True
-
-    endpoint, payload = request.call_args.args
-    assert endpoint == "/api/v2/events/build"
-    assert payload["event_id"] == str(event.event_id)
-    assert payload["course_id"] == 7
-    assert payload["assignment_id"] == 42
-    assert payload["student_key"] == "202012345"
-    assert payload["occurred_at"] == "2026-08-18T12:00:00+00:00"
-
-
-@pytest.mark.asyncio
-@pytest.mark.parametrize(
-    ("process_type", "expected"),
-    [(ProcessType.USER_BINARY, "binary"), (ProcessType.PYTHON, "python")],
-)
-async def test_run_event_uses_stable_contract(sender, process_type, expected):
-    event = make_event(process_type)
-    with patch.object(
-        sender, "_send_request", new=AsyncMock(return_value=True)
-    ) as request:
-        assert await sender.send_event(event) is True
-
-    endpoint, payload = request.call_args.args
-    assert endpoint == "/api/v2/events/run"
-    assert payload["process_type"] == expected
-
-
-@pytest.mark.asyncio
-async def test_retry_reuses_collector_event_id(sender):
-    event = make_event()
-    with patch.object(
-        sender, "_send_request", new=AsyncMock(side_effect=[False, True])
-    ) as request:
-        assert await sender.send_event(event) is False
-        assert await sender.send_event(event) is True
-
-    assert (
-        request.call_args_list[0].args[1]["event_id"]
-        == request.call_args_list[1].args[1]["event_id"]
+    return EventSender(
+        "http://watcher", course_resolver=resolver, spool_path=str(tmp_path / "spool.db")
     )
 
 
 @pytest.mark.asyncio
-async def test_unknown_event_is_not_sent(sender):
-    assert await sender.send_event(make_event(ProcessType.UNKNOWN)) is False
+@pytest.mark.parametrize(
+    ("process_type", "event_type", "process_name"),
+    [
+        (ProcessType.GCC, "build", None),
+        (ProcessType.USER_BINARY, "run", "binary"),
+        (ProcessType.PYTHON, "run", "python"),
+    ],
+)
+async def test_process_event_uses_batch_contract(
+    tmp_path, process_type, event_type, process_name
+):
+    event = make_event(process_type)
+    client = sender(tmp_path)
+    context, session = response_context(acknowledged=[str(event.event_id)])
+    with patch("app.sender.aiohttp.ClientSession", return_value=context):
+        assert await client.send_event(event) is True
+
+    item = session.post.call_args.kwargs["json"]["events"][0]
+    assert item["type"] == event_type
+    assert item["payload"]["event_id"] == str(event.event_id)
+    assert item["payload"]["course_id"] == 7
+    assert item["payload"]["assignment_id"] == 42
+    if process_name:
+        assert item["payload"]["process_type"] == process_name
+
+
+@pytest.mark.asyncio
+async def test_failed_process_batch_survives_restart(tmp_path, monkeypatch):
+    monkeypatch.setattr(settings, "SPOOL_RETRY_SECONDS", 0)
+    first_event = make_event(event_id=uuid4())
+    second_event = make_event(ProcessType.USER_BINARY, event_id=uuid4())
+    first = sender(tmp_path)
+    failed_context, _ = response_context(status=503)
+    with patch("app.sender.aiohttp.ClientSession", return_value=failed_context):
+        assert await first.send_event(first_event) is False
+        assert await first.send_event(second_event) is False
+
+    restarted = sender(tmp_path)
+    ids = [str(first_event.event_id), str(second_event.event_id)]
+    success_context, session = response_context(acknowledged=ids)
+    with patch("app.sender.aiohttp.ClientSession", return_value=success_context):
+        assert await restarted.flush_once() == 2
+
+    sent_ids = {
+        item["payload"]["event_id"]
+        for item in session.post.call_args.kwargs["json"]["events"]
+    }
+    assert sent_ids == set(ids)
+    assert all(not restarted.spool.contains(event_id) for event_id in ids)
+
+
+@pytest.mark.asyncio
+async def test_unknown_event_is_not_spooled(tmp_path):
+    client = sender(tmp_path)
+    event = make_event(ProcessType.UNKNOWN)
+    assert await client.send_event(event) is False
+    assert client.spool.contains(str(event.event_id)) is False

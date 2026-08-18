@@ -22,16 +22,18 @@ spec:
         - name: http-metrics
           containerPort: 3000
         env:
+        - name: MY_NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
         - name: LOG_LEVEL
           value: "DEBUG"  # docker-compose와 일치
         - name: API_SERVER
           value: "http://watcher-backend-service.watcher.svc.cluster.local:3000"  # settings.py와 일치
         - name: JCODE_ENVIRONMENT
           value: "prod"
-        - name: MY_NODE_NAME
-          valueFrom:
-            fieldRef:
-              fieldPath: spec.nodeName
+        - name: SPOOL_PATH
+          value: "/opt/procmon/logs/$(MY_NODE_NAME)-event-spool.db"
         securityContext:
           capabilities:
             drop: ["ALL"]

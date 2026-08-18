@@ -4,6 +4,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import UUID
 
 import pytest
+from app.config.settings import settings
 from app.models.source_file_info import SourceFileInfo
 from app.sender import SnapshotSender
 
@@ -16,16 +17,21 @@ def event():
         assignment_id=42,
         student_id="202012345",
         filename="src/main.c",
-        target_file_path=Path("/watcher/codes/os-1-202012345/assignment-42/src/main.c"),
+        target_file_path=Path(
+            "/watcher/codes/os-1-202012345/assignment-42/src/main.c"
+        ),
         timestamp="20260818_120000",
         event_id=UUID("00000000-0000-0000-0000-000000000042"),
         occurred_at=datetime(2026, 8, 18, 12, tzinfo=timezone.utc),
     )
 
 
-def response_context(status=200, body="ok"):
+def response_context(status=200, acknowledged=None, body="error"):
     response = MagicMock(status=status)
     response.text = AsyncMock(return_value=body)
+    response.json = AsyncMock(
+        return_value={"acknowledged_event_ids": acknowledged or []}
+    )
     post_context = MagicMock()
     post_context.__aenter__ = AsyncMock(return_value=response)
     post_context.__aexit__ = AsyncMock(return_value=None)
@@ -38,20 +44,21 @@ def response_context(status=200, body="ok"):
 
 
 @pytest.mark.asyncio
-async def test_snapshot_uses_stable_event_contract(event):
+async def test_snapshot_uses_batch_contract(event, tmp_path):
     resolver = AsyncMock()
     resolver.resolve.return_value = 7
-    sender = SnapshotSender(course_resolver=resolver)
-    context, session = response_context()
+    sender = SnapshotSender(resolver, str(tmp_path / "spool.db"))
+    context, session = response_context(acknowledged=[str(event.event_id)])
 
     with patch("app.sender.aiohttp.ClientSession", return_value=context):
         assert await sender.register_snapshot(event, 128) is True
 
     url = session.post.call_args.args[0]
-    payload = session.post.call_args.kwargs["json"]
-    assert url.endswith("/api/v2/events/snapshot")
-    assert payload == {
-        "event_id": "00000000-0000-0000-0000-000000000042",
+    item = session.post.call_args.kwargs["json"]["events"][0]
+    assert url.endswith("/api/v2/events/batch")
+    assert item["type"] == "snapshot"
+    assert item["payload"] == {
+        "event_id": str(event.event_id),
         "course_id": 7,
         "assignment_id": 42,
         "student_key": "202012345",
@@ -64,27 +71,42 @@ async def test_snapshot_uses_stable_event_contract(event):
 
 
 @pytest.mark.asyncio
-async def test_snapshot_retry_keeps_event_id(event):
+async def test_failed_snapshot_survives_restart_with_same_event_id(
+    event, tmp_path, monkeypatch
+):
+    monkeypatch.setattr(settings, "SPOOL_RETRY_SECONDS", 0)
     resolver = AsyncMock()
     resolver.resolve.return_value = 7
-    sender = SnapshotSender(course_resolver=resolver)
-    first_context, first_session = response_context(status=503)
-    second_context, second_session = response_context(status=200)
+    spool_path = str(tmp_path / "spool.db")
+    first = SnapshotSender(resolver, spool_path)
+    failed_context, failed_session = response_context(status=503)
+    with patch("app.sender.aiohttp.ClientSession", return_value=failed_context):
+        assert await first.register_snapshot(event, 128) is False
 
-    with patch(
-        "app.sender.aiohttp.ClientSession", side_effect=[first_context, second_context]
-    ):
-        assert await sender.register_snapshot(event, 128) is False
-        assert await sender.register_snapshot(event, 128) is True
+    restarted = SnapshotSender(resolver, spool_path)
+    success_context, success_session = response_context(
+        acknowledged=[str(event.event_id)]
+    )
+    with patch("app.sender.aiohttp.ClientSession", return_value=success_context):
+        assert await restarted.flush_once() == 1
 
-    first = first_session.post.call_args.kwargs["json"]["event_id"]
-    second = second_session.post.call_args.kwargs["json"]["event_id"]
-    assert first == second
+    first_id = failed_session.post.call_args.kwargs["json"]["events"][0]["payload"][
+        "event_id"
+    ]
+    retried_id = success_session.post.call_args.kwargs["json"]["events"][0][
+        "payload"
+    ]["event_id"]
+    assert first_id == retried_id == str(event.event_id)
+    assert restarted.spool.contains(str(event.event_id)) is False
 
 
 @pytest.mark.asyncio
-async def test_snapshot_fails_when_course_cannot_be_resolved(event):
+async def test_snapshot_is_spooled_when_course_resolution_fails(
+    event, tmp_path, monkeypatch
+):
+    monkeypatch.setattr(settings, "SPOOL_RETRY_SECONDS", 0)
     resolver = AsyncMock()
     resolver.resolve.side_effect = ValueError("course metadata missing")
-    sender = SnapshotSender(course_resolver=resolver)
+    sender = SnapshotSender(resolver, str(tmp_path / "spool.db"))
     assert await sender.register_snapshot(event, 128) is False
+    assert sender.spool.contains(str(event.event_id)) is True

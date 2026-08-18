@@ -27,6 +27,10 @@ def validate_release(path: Path, environment: str) -> None:
     items = documents(path)
     namespace = "dev" if environment == "dev" else "watcher"
     backend = find(items, "Deployment", "watcher-backend")["spec"]["template"]["spec"]
+    backend_deployment = find(items, "Deployment", "watcher-backend")
+    assert backend_deployment["spec"]["replicas"] == (
+        1 if environment == "dev" else 2
+    )
     backend_container = backend["containers"][0]
     db = env(backend_container)["DB_URL"]["valueFrom"]["secretKeyRef"]
     assert db == {"name": "watcher-postgres-app", "key": "uri"}
@@ -49,8 +53,12 @@ def validate_release(path: Path, environment: str) -> None:
     for name in ("watcher-filemon", "watcher-procmon"):
         pod = find(items, "DaemonSet", name)["spec"]["template"]["spec"]
         assert pod["serviceAccountName"] == "watcher-course-reader"
-        assert env(pod["containers"][0])["JCODE_ENVIRONMENT"]["value"] == (
+        collector_env = env(pod["containers"][0])
+        assert collector_env["JCODE_ENVIRONMENT"]["value"] == (
             "dev" if environment == "dev" else "prod"
+        )
+        assert collector_env["SPOOL_PATH"]["value"].endswith(
+            "$(MY_NODE_NAME)-event-spool.db"
         )
 
     for item in items:

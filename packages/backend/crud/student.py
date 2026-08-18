@@ -5,6 +5,8 @@ from models.runLog import RunLog
 from models.snapshot import Snapshot
 from sqlalchemy import func
 from sqlmodel import Session, select
+from utils.assignment_key import assignment_predicates
+from utils.cursor import event_cursor_predicate
 
 
 def get_snapshot_stats(
@@ -12,8 +14,7 @@ def get_snapshot_stats(
 ):
     return db.exec(
         select(func.count(Snapshot.id), func.avg(Snapshot.file_size)).where(
-            Snapshot.class_div == class_div,
-            Snapshot.hw_name == hw_name,
+            *assignment_predicates(Snapshot, class_div, hw_name),
             Snapshot.student_key == str(student_id),
             Snapshot.relative_path == filename,
         )
@@ -24,9 +25,8 @@ def get_assignment_snapshot_stats(
     db: Session, class_div: str, student_id: int, hw_name: str
 ):
     filters = (
-        Snapshot.class_div == class_div,
+        *assignment_predicates(Snapshot, class_div, hw_name),
         Snapshot.student_key == str(student_id),
-        Snapshot.hw_name == hw_name,
     )
     count, average, first, last = db.exec(
         select(
@@ -53,41 +53,38 @@ def get_student_trends(
         func.floor(func.extract("epoch", Snapshot.occurred_at) / bucket_seconds)
         * bucket_seconds
     )
-    latest_per_file = (
+    previous_size = func.lag(Snapshot.file_size, 1, 0).over(
+        partition_by=Snapshot.relative_path,
+        order_by=(Snapshot.occurred_at, Snapshot.id),
+    )
+    changes = (
         select(
             bucket.label("bucket"),
-            Snapshot.relative_path.label("relative_path"),
-            Snapshot.file_size.label("file_size"),
+            (Snapshot.file_size - previous_size).label("size_change"),
         )
-        .distinct(bucket, Snapshot.relative_path)
         .where(
-            Snapshot.class_div == class_div,
+            *assignment_predicates(Snapshot, class_div, hw_name),
             Snapshot.student_key == str(student_id),
-            Snapshot.hw_name == hw_name,
-        )
-        .order_by(
-            bucket,
-            Snapshot.relative_path,
-            Snapshot.occurred_at.desc(),
-            Snapshot.id.desc(),
         )
         .subquery()
     )
-    totals = (
+    bucket_changes = (
         select(
-            latest_per_file.c.bucket,
-            func.sum(latest_per_file.c.file_size).label("total_size"),
+            changes.c.bucket,
+            func.sum(changes.c.size_change).label("size_change"),
         )
-        .group_by(latest_per_file.c.bucket)
+        .group_by(changes.c.bucket)
         .subquery()
     )
-    previous = func.lag(totals.c.total_size, 1, 0).over(order_by=totals.c.bucket)
+    total_size = func.sum(bucket_changes.c.size_change).over(
+        order_by=bucket_changes.c.bucket, rows=(None, 0)
+    )
     return db.exec(
         select(
-            totals.c.bucket,
-            totals.c.total_size,
-            (totals.c.total_size - previous).label("size_change"),
-        ).order_by(totals.c.bucket)
+            bucket_changes.c.bucket,
+            total_size.label("total_size"),
+            bucket_changes.c.size_change,
+        ).order_by(bucket_changes.c.bucket)
     ).all()
 
 
@@ -99,11 +96,10 @@ def get_build_log(
     from_time: datetime | None = None,
     to_time: datetime | None = None,
     limit: int = 200,
-    cursor: int | None = None,
+    cursor: str | None = None,
 ):
     statement = select(BuildLog).where(
-        BuildLog.class_div == class_div,
-        BuildLog.hw_name == hw_name,
+        *assignment_predicates(BuildLog, class_div, hw_name),
         BuildLog.student_key == str(student_id),
     )
     if from_time is not None:
@@ -111,8 +107,12 @@ def get_build_log(
     if to_time is not None:
         statement = statement.where(BuildLog.occurred_at <= to_time)
     if cursor is not None:
-        statement = statement.where(BuildLog.id < cursor)
-    return db.exec(statement.order_by(BuildLog.id.desc()).limit(limit + 1)).all()
+        statement = statement.where(event_cursor_predicate(BuildLog, cursor))
+    return db.exec(
+        statement.order_by(BuildLog.occurred_at.desc(), BuildLog.id.desc()).limit(
+            limit + 1
+        )
+    ).all()
 
 
 def get_run_log(
@@ -123,11 +123,10 @@ def get_run_log(
     from_time: datetime | None = None,
     to_time: datetime | None = None,
     limit: int = 200,
-    cursor: int | None = None,
+    cursor: str | None = None,
 ):
     statement = select(RunLog).where(
-        RunLog.class_div == class_div,
-        RunLog.hw_name == hw_name,
+        *assignment_predicates(RunLog, class_div, hw_name),
         RunLog.student_key == str(student_id),
     )
     if from_time is not None:
@@ -135,5 +134,7 @@ def get_run_log(
     if to_time is not None:
         statement = statement.where(RunLog.occurred_at <= to_time)
     if cursor is not None:
-        statement = statement.where(RunLog.id < cursor)
-    return db.exec(statement.order_by(RunLog.id.desc()).limit(limit + 1)).all()
+        statement = statement.where(event_cursor_predicate(RunLog, cursor))
+    return db.exec(
+        statement.order_by(RunLog.occurred_at.desc(), RunLog.id.desc()).limit(limit + 1)
+    ).all()

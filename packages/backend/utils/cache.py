@@ -2,7 +2,7 @@ import os
 import threading
 import time
 from collections import OrderedDict
-from typing import Any, Optional
+from typing import Any
 
 
 class BoundedTTLCache:
@@ -15,7 +15,7 @@ class BoundedTTLCache:
         self._cache: OrderedDict[str, tuple[float, Any]] = OrderedDict()
         self._lock = threading.RLock()
 
-    def get(self, key: str) -> Optional[Any]:
+    def get(self, key: str) -> Any | None:
         now = time.monotonic()
         with self._lock:
             item = self._cache.get(key)
@@ -69,7 +69,7 @@ def log_cache_key(
     from_time,
     to_time,
     limit: int,
-    cursor: Optional[int],
+    cursor: str | None,
 ) -> str:
     return ":".join(
         [

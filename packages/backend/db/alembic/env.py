@@ -1,6 +1,7 @@
 from logging.config import fileConfig
 
 from alembic import context
+from db.url import normalize_database_url
 from models.buildLog import BuildLog  # noqa: F401
 from models.runLog import RunLog  # noqa: F401
 from models.snapshot import Snapshot  # noqa: F401
@@ -9,7 +10,8 @@ from sqlalchemy import engine_from_config, pool
 from sqlmodel import SQLModel
 
 config = context.config
-config.set_main_option("sqlalchemy.url", settings.DB_URL)
+database_url = normalize_database_url(settings.DB_URL)
+config.set_main_option("sqlalchemy.url", database_url)
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 target_metadata = SQLModel.metadata
@@ -17,7 +19,7 @@ target_metadata = SQLModel.metadata
 
 def run_migrations_offline() -> None:
     context.configure(
-        url=settings.DB_URL,
+        url=database_url,
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},

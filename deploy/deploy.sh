@@ -11,8 +11,8 @@ esac
 kubectl create namespace "$namespace" --dry-run=client -o yaml | kubectl apply -f -
 kubectl get secret watcher-postgres-app -n "$namespace" >/dev/null
 db_url=$(kubectl get secret watcher-postgres-app -n "$namespace" -o jsonpath='{.data.uri}' | base64 --decode)
-if [[ "$db_url" != postgresql+psycopg://* ]]; then
-  echo "watcher-postgres-app Secret의 uri는 postgresql+psycopg:// 형식이어야 합니다." >&2
+if [[ "$db_url" != postgresql://* && "$db_url" != postgresql+psycopg://* ]]; then
+  echo "watcher-postgres-app Secret의 uri는 PostgreSQL 연결 문자열이어야 합니다." >&2
   exit 1
 fi
 unset db_url

@@ -1,18 +1,17 @@
-from typing import List
 
 from models.snapshot import Snapshot
 from sqlmodel import Session, select
+from utils.assignment_key import assignment_predicates
 
 
 def get_student_hw_files(
     db: Session, class_div: str, student_id: int, hw_name: str
-) -> List[str]:
+) -> list[str]:
     statement = (
         select(Snapshot.relative_path)
         .distinct()
-        .where(Snapshot.class_div == class_div)
+        .where(*assignment_predicates(Snapshot, class_div, hw_name))
         .where(Snapshot.student_key == str(student_id))
-        .where(Snapshot.hw_name == hw_name)
         .order_by(Snapshot.relative_path)
         .limit(1000)
     )
@@ -21,12 +20,11 @@ def get_student_hw_files(
 
 def get_student_hw_timestamps(
     db: Session, class_div: str, student_id: int, hw_name: str, filename: str
-) -> List[str]:
+) -> list[str]:
     statement = (
         select(Snapshot.occurred_at)
-        .where(Snapshot.class_div == class_div)
+        .where(*assignment_predicates(Snapshot, class_div, hw_name))
         .where(Snapshot.student_key == str(student_id))
-        .where(Snapshot.hw_name == hw_name)
         .where(Snapshot.relative_path == filename)
     )
 

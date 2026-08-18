@@ -11,6 +11,9 @@ class Settings(BaseSettings):
     HW_MAX_COUNT: int = 15  # hw 디렉토리 최대 번호
     API_SERVER: str = "http://localhost:8080"  # API 서버 주소
     API_TIMEOUT_TOTAL: int = 20
+    SPOOL_PATH: str = "/opt/filemon/logs/event-spool.db"
+    SPOOL_BATCH_SIZE: int = 100
+    SPOOL_RETRY_SECONDS: float = 2
     JCODE_ENVIRONMENT: Literal["dev", "prod"] = "prod"
     COURSE_ID_MAP_JSON: str = ""
     COURSE_ID_CACHE_SECONDS: int = 300

@@ -1,18 +1,19 @@
 import asyncio
 import signal
 from concurrent.futures import ThreadPoolExecutor
+
+from app.config.settings import settings
+from app.debouncer import Debouncer
+from app.pipeline import FilemonPipeline
+from app.sender import SnapshotSender
+from app.snapshot import SnapshotManager
+from app.source_path_filter import PathFilter
+from app.source_path_parser import SourcePathParser
+from app.tasks import monitor_queues, monitor_watchdog, run_debouncer, run_main_pipeline
+from app.utils.logger import get_logger, setup_logging
+from app.watchdog_handler import WatchdogHandler
 from prometheus_client import start_http_server
 from watchdog.observers import Observer
-from app.watchdog_handler import WatchdogHandler
-from app.pipeline import FilemonPipeline
-from app.debouncer import Debouncer
-from app.snapshot import SnapshotManager
-from app.sender import SnapshotSender
-from app.source_path_parser import SourcePathParser
-from app.source_path_filter import PathFilter
-from app.config.settings import settings
-from app.utils.logger import setup_logging, get_logger
-from app.tasks import monitor_watchdog, monitor_queues, run_debouncer, run_main_pipeline
 
 logger=None
 
@@ -73,7 +74,8 @@ async def main():
             tg.create_task(run_main_pipeline(processed_queue, pipeline))
             tg.create_task(monitor_watchdog(observer))
             tg.create_task(monitor_queues(raw_queue, processed_queue))
-    except* Exception as eg:
+            tg.create_task(snapshot_sender.run_retry_loop())
+    except* Exception:
         logger.critical("TaskGroup에서 하나 이상의 처리되지 않은 예외 발생. 시스템을 종료합니다.", exc_info=True)
     finally:
         await shutdown(pipeline, observer, executor)

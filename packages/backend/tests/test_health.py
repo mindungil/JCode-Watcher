@@ -1,6 +1,7 @@
 import main
 import pytest
 from db.connection import build_engine
+from db.url import normalize_database_url
 from fastapi.testclient import TestClient
 
 
@@ -13,9 +14,12 @@ def test_liveness_does_not_depend_on_database(monkeypatch):
     assert client.get("/ready").status_code == 503
 
 
-def test_database_driver_is_restricted_to_psycopg_or_test_sqlite():
+def test_database_driver_accepts_cnpg_uri_and_restricts_other_drivers():
     sqlite_engine = build_engine("sqlite://")
     assert sqlite_engine.dialect.name == "sqlite"
     sqlite_engine.dispose()
-    with pytest.raises(RuntimeError, match=r"postgresql\+psycopg"):
+    assert normalize_database_url("postgresql://user:pass@db/watcher") == (
+        "postgresql+psycopg://user:pass@db/watcher"
+    )
+    with pytest.raises(RuntimeError, match="DB_URL"):
         build_engine("mysql+pymysql://watcher:watcher@localhost/watcher")

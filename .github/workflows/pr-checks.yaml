@@ -28,7 +28,7 @@ jobs:
       run:
         working-directory: packages/backend
     env:
-      DB_URL: postgresql+psycopg://watcher:watcher@localhost:5432/watcher_test
+      DB_URL: postgresql://watcher:watcher@localhost:5432/watcher_test
       AUTO_CREATE_SCHEMA: "false"
       DB_POOL_SIZE: "5"
       DB_MAX_OVERFLOW: "5"

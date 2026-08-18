@@ -4,7 +4,7 @@ Watcher의 신규 이벤트는 빈 PostgreSQL 데이터베이스에 저장합니
 
 ## 배포 순서
 
-1. `watcher-postgres-app` Secret의 `uri`에 `postgresql+psycopg://` 연결 문자열을 설정합니다.
+1. `watcher-postgres-app` Secret의 `uri`에 CNPG가 제공하는 `postgresql://` 연결 문자열을 설정합니다. Backend와 Alembic이 이를 psycopg 드라이버 URL로 정규화합니다.
 2. 확인된 commit 이미지 digest를 `deploy/set-image-digests.py`로 dev overlay에 기록합니다.
 3. `deploy/deploy.sh dev`를 실행합니다. 이 스크립트는 Backend를 내리고 `alembic upgrade head` Job을 완료한 뒤 Backend와 수집기를 올립니다.
 4. Snapshot, Build, Run 등록·조회와 `/ready`, Pod 재시작 후 데이터 유지를 확인합니다.
@@ -15,6 +15,8 @@ Backend와 migration Job에는 SQLite PVC를 마운트하지 않습니다. Postg
 최초 production 전환에서는 기존 수집기를 먼저 중단하고 SQLite 백업을 완료한 뒤 배포합니다. 새 Backend가 준비되기 전에 구형 수집기를 다시 시작하지 않습니다.
 
 Filemon과 Procmon은 강의 Namespace의 `jcode.io/course-id` annotation을 읽어 `course_id`를 결정합니다. 이 권한은 `watcher-course-metadata-reader` ClusterRole의 Namespace `get`으로 제한됩니다.
+
+수집 이벤트는 전송 전에 노드별 `event-spool.db`에 기록됩니다. Backend 장애나 수집기 재시작 후에도 같은 `event_id`로 배치 재전송되며, Backend는 배치를 한 트랜잭션으로 저장합니다. 로그 PVC는 수집기보다 먼저 삭제하지 않습니다.
 
 ## SQLite 보관 경계
 

@@ -5,7 +5,7 @@ resources:
 namespace: watcher
 replicas:
   - name: watcher-backend
-    count: 1
+    count: 2
 images:
   - name: harbor.jedutools.io/jdevops/watcher-backend
     newName: harbor.jedutools.io/jdevops/watcher-backend

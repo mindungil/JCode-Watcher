@@ -42,16 +42,34 @@ patches:
       kind: DaemonSet
       name: watcher-filemon
     patch: |-
-      - op: replace
-        path: /spec/template/spec/containers/0/env/3/value
-        value: dev
+      apiVersion: apps/v1
+      kind: DaemonSet
+      metadata:
+        name: watcher-filemon
+      spec:
+        template:
+          spec:
+            containers:
+              - name: watcher-filemon
+                env:
+                  - name: JCODE_ENVIRONMENT
+                    value: dev
   - target:
       kind: DaemonSet
       name: watcher-procmon
     patch: |-
-      - op: replace
-        path: /spec/template/spec/containers/0/env/3/value
-        value: dev
+      apiVersion: apps/v1
+      kind: DaemonSet
+      metadata:
+        name: watcher-procmon
+      spec:
+        template:
+          spec:
+            containers:
+              - name: watcher-procmon
+                env:
+                  - name: JCODE_ENVIRONMENT
+                    value: dev
   - target:
       kind: PersistentVolumeClaim
       name: watcher-filemon-pvc

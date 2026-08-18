@@ -9,6 +9,9 @@ class Settings(BaseSettings):
     LOG_LEVEL: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
     API_SERVER: str = "http://localhost:8000"
     API_TIMEOUT_TOTAL: int = 20
+    SPOOL_PATH: str = "/opt/procmon/logs/event-spool.db"
+    SPOOL_BATCH_SIZE: int = 100
+    SPOOL_RETRY_SECONDS: float = 2
     JCODE_ENVIRONMENT: Literal["dev", "prod"] = "prod"
     COURSE_ID_MAP_JSON: str = ""
     COURSE_ID_CACHE_SECONDS: int = 300
