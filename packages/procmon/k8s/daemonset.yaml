@@ -12,10 +12,11 @@ spec:
       labels:
         app: watcher-procmon
     spec:
+      serviceAccountName: watcher-course-reader
       hostPID: true  # 호스트 PID 네임스페이스 접근
       containers:
       - name: watcher-procmon
-        image: harbor.jbnu.ac.kr/jdevops/watcher-procmon:latest
+        image: harbor.jedutools.io/jdevops/watcher-procmon:REPLACE_WITH_COMMIT_SHA
         imagePullPolicy: IfNotPresent  # 로컬 이미지 사용
         ports:
         - name: http-metrics
@@ -25,6 +26,8 @@ spec:
           value: "DEBUG"  # docker-compose와 일치
         - name: API_SERVER
           value: "http://watcher-backend-service.watcher.svc.cluster.local:3000"  # settings.py와 일치
+        - name: JCODE_ENVIRONMENT
+          value: "prod"
         - name: MY_NODE_NAME
           valueFrom:
             fieldRef:
