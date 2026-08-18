@@ -29,15 +29,29 @@ patches:
             value: "true"
             effect: NoSchedule
   - target:
-      kind: PersistentVolumeClaim
-      name: watcher-backend-pvc
+      kind: ClusterRoleBinding
+      name: watcher-course-metadata-reader-production
     patch: |-
       - op: replace
-        path: /spec/storageClassName
-        value: nfs-dev
+        path: /metadata/name
+        value: watcher-course-metadata-reader-dev
       - op: replace
-        path: /spec/resources/requests/storage
-        value: 5Gi
+        path: /subjects/0/namespace
+        value: dev
+  - target:
+      kind: DaemonSet
+      name: watcher-filemon
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/env/3/value
+        value: dev
+  - target:
+      kind: DaemonSet
+      name: watcher-procmon
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/env/3/value
+        value: dev
   - target:
       kind: PersistentVolumeClaim
       name: watcher-filemon-pvc
@@ -69,12 +83,12 @@ patches:
         path: /spec/resources/requests/storage
         value: 1Gi
 images:
-  - name: harbor.jbnu.ac.kr/jdevops/watcher-backend
-    newName: harbor.jbnu.ac.kr/jdevops/watcher-backend
+  - name: harbor.jedutools.io/jdevops/watcher-backend
+    newName: harbor.jedutools.io/jdevops/watcher-backend
     digest: sha256:REPLACE_WITH_VERIFIED_DIGEST
-  - name: harbor.jbnu.ac.kr/jdevops/watcher-filemon
-    newName: harbor.jbnu.ac.kr/jdevops/watcher-filemon
+  - name: harbor.jedutools.io/jdevops/watcher-filemon
+    newName: harbor.jedutools.io/jdevops/watcher-filemon
     digest: sha256:REPLACE_WITH_VERIFIED_DIGEST
-  - name: harbor.jbnu.ac.kr/jdevops/watcher-procmon
-    newName: harbor.jbnu.ac.kr/jdevops/watcher-procmon
+  - name: harbor.jedutools.io/jdevops/watcher-procmon
+    newName: harbor.jedutools.io/jdevops/watcher-procmon
     digest: sha256:REPLACE_WITH_VERIFIED_DIGEST

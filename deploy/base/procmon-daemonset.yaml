@@ -12,10 +12,11 @@ spec:
       labels:
         app: watcher-procmon
     spec:
+      serviceAccountName: watcher-course-reader
       hostPID: true  # 호스트 PID 네임스페이스 접근
       containers:
       - name: watcher-procmon
-        image: harbor.jbnu.ac.kr/jdevops/watcher-procmon:REPLACE_WITH_COMMIT_SHA
+        image: harbor.jedutools.io/jdevops/watcher-procmon:REPLACE_WITH_COMMIT_SHA
         imagePullPolicy: IfNotPresent  # 로컬 이미지 사용
         ports:
         - name: http-metrics
@@ -46,6 +47,8 @@ spec:
           value: "http://watcher-backend-service:3000"
         - name: METRICS_PORT
           value: "3000"
+        - name: JCODE_ENVIRONMENT
+          value: "prod"
         - name: MY_NODE_NAME
           valueFrom:
             fieldRef:

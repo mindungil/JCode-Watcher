@@ -9,6 +9,13 @@ case "$target" in
 esac
 
 kubectl create namespace "$namespace" --dry-run=client -o yaml | kubectl apply -f -
+kubectl get secret watcher-postgres-app -n "$namespace" >/dev/null
+db_url=$(kubectl get secret watcher-postgres-app -n "$namespace" -o jsonpath='{.data.uri}' | base64 --decode)
+if [[ "$db_url" != postgresql+psycopg://* ]]; then
+  echo "watcher-postgres-app Secret의 uri는 postgresql+psycopg:// 형식이어야 합니다." >&2
+  exit 1
+fi
+unset db_url
 if [[ "$target" == "dev" ]]; then
   for legacy in watcher-filemon watcher-proc; do
     if kubectl get deployment "$legacy" -n "$namespace" >/dev/null 2>&1; then

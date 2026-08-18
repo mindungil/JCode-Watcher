@@ -12,9 +12,10 @@ spec:
       labels:
         app: watcher-filemon
     spec:
+      serviceAccountName: watcher-course-reader
       containers:
       - name: watcher-filemon
-        image: harbor.jbnu.ac.kr/jdevops/watcher-filemon:20250729-1
+        image: harbor.jedutools.io/jdevops/watcher-filemon:REPLACE_WITH_COMMIT_SHA
         imagePullPolicy: IfNotPresent
         ports:
         - name: http-metrics
@@ -54,6 +55,8 @@ spec:
           value: "http://watcher-backend-service:3000"
         - name: METRICS_PORT
           value: "3000"
+        - name: JCODE_ENVIRONMENT
+          value: "prod"
         - name: MY_NODE_NAME
           valueFrom:
             fieldRef:
