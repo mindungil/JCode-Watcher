@@ -5,6 +5,7 @@ from concurrent.futures import ThreadPoolExecutor
 from app.config.settings import settings
 from app.debouncer import Debouncer
 from app.pipeline import FilemonPipeline
+from app.readiness import ReadinessState, start_readiness_server
 from app.sender import SnapshotSender
 from app.snapshot import SnapshotManager
 from app.source_path_filter import PathFilter
@@ -33,6 +34,10 @@ async def main():
     # 프로메테우스 메트릭 서버 시작
     start_http_server(settings.METRICS_PORT)
     logger.info("프로메테우스 메트릭 서버 시작", port=settings.METRICS_PORT)
+    readiness_state = ReadinessState()
+    readiness_server = start_readiness_server(
+        settings.READINESS_PORT, readiness_state
+    )
 
     logger.info("Filemon 애플리케이션 시작",
                log_level=settings.LOG_LEVEL,
@@ -64,24 +69,49 @@ async def main():
 
     # asyncio 스타일의 시그널 처리(Unix)
     for sig in (signal.SIGINT, signal.SIGTERM):
-        loop.add_signal_handler(sig, lambda s=sig: asyncio.create_task(shutdown(pipeline, observer, executor)))
+        loop.add_signal_handler(
+            sig,
+            lambda s=sig: asyncio.create_task(
+                shutdown(
+                    pipeline,
+                    observer,
+                    executor,
+                    readiness_state,
+                    readiness_server,
+                )
+            ),
+        )
 
     logger.info("메인 이벤트 루프 시작")
     
     try:
+        retry_started = asyncio.Event()
         async with asyncio.TaskGroup() as tg:
             tg.create_task(run_debouncer(debouncer, raw_queue))
             tg.create_task(run_main_pipeline(processed_queue, pipeline))
             tg.create_task(monitor_watchdog(observer))
             tg.create_task(monitor_queues(raw_queue, processed_queue))
-            tg.create_task(snapshot_sender.run_retry_loop())
+            tg.create_task(snapshot_sender.run_retry_loop(retry_started))
+            await retry_started.wait()
+            readiness_state.mark_ready()
+            logger.info("Filemon readiness 활성화")
     except* Exception:
         logger.critical("TaskGroup에서 하나 이상의 처리되지 않은 예외 발생. 시스템을 종료합니다.", exc_info=True)
     finally:
-        await shutdown(pipeline, observer, executor)
+        await shutdown(
+            pipeline,
+            observer,
+            executor,
+            readiness_state,
+            readiness_server,
+        )
 
-async def shutdown(pipeline, observer, executor):
+async def shutdown(
+    pipeline, observer, executor, readiness_state=None, readiness_server=None
+):
     logger.info("애플리케이션 종료 시작", component="shutdown")
+    if readiness_state:
+        readiness_state.mark_not_ready()
     try:
         if observer:
             observer.stop()
@@ -94,4 +124,7 @@ async def shutdown(pipeline, observer, executor):
     finally:
         if executor:
             executor.shutdown(wait=True)
+        if readiness_server:
+            readiness_server.shutdown()
+            readiness_server.server_close()
         logger.info("애플리케이션 종료 완료", component="shutdown")

@@ -1,3 +1,4 @@
+import asyncio
 from datetime import datetime, timezone
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -110,3 +111,20 @@ async def test_snapshot_is_spooled_when_course_resolution_fails(
     sender = SnapshotSender(resolver, str(tmp_path / "spool.db"))
     assert await sender.register_snapshot(event, 128) is False
     assert sender.spool.contains(str(event.event_id)) is True
+
+
+@pytest.mark.asyncio
+async def test_retry_loop_reports_when_it_has_started(tmp_path, monkeypatch):
+    monkeypatch.setattr(settings, "SPOOL_RETRY_SECONDS", 60)
+    sender = SnapshotSender(AsyncMock(), str(tmp_path / "spool.db"))
+    sender.flush_once = AsyncMock(return_value=0)
+    started = asyncio.Event()
+    task = asyncio.create_task(sender.run_retry_loop(started))
+    try:
+        await asyncio.wait_for(started.wait(), timeout=1)
+        await asyncio.sleep(0)
+        sender.flush_once.assert_awaited_once()
+    finally:
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await task

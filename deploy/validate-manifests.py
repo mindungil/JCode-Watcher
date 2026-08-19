@@ -53,13 +53,81 @@ def validate_release(path: Path, environment: str) -> None:
     for name in ("watcher-filemon", "watcher-procmon"):
         pod = find(items, "DaemonSet", name)["spec"]["template"]["spec"]
         assert pod["serviceAccountName"] == "watcher-course-reader"
-        collector_env = env(pod["containers"][0])
+        container = pod["containers"][0]
+        collector_env = env(container)
         assert collector_env["JCODE_ENVIRONMENT"]["value"] == (
             "dev" if environment == "dev" else "prod"
         )
-        assert collector_env["SPOOL_PATH"]["value"].endswith(
-            "$(MY_NODE_NAME)-event-spool.db"
+        assert collector_env["SPOOL_PATH"]["value"] == (
+            "/var/lib/jcode-watcher/spool/event-spool.db"
         )
+        spool_volume = next(
+            volume
+            for volume in pod["volumes"]
+            if volume["name"] in {"spool", "spool-volume"}
+        )
+        assert spool_volume["hostPath"]["type"] == "DirectoryOrCreate"
+        collector = "filemon" if name == "watcher-filemon" else "procmon"
+        assert spool_volume["hostPath"]["path"] == (
+            f"/var/lib/jcode-watcher/{collector}-spool"
+        )
+        assert any(
+            mount["mountPath"] == "/var/lib/jcode-watcher/spool"
+            for mount in container["volumeMounts"]
+        )
+
+    filemon = find(items, "DaemonSet", "watcher-filemon")
+    filemon_container = filemon["spec"]["template"]["spec"]["containers"][0]
+    assert filemon_container["readinessProbe"]["httpGet"] == {
+        "path": "/ready",
+        "port": "http-ready",
+    }
+    assert env(filemon_container)["LOG_BACKUP_COUNT"]["value"] == "5"
+    filemon_logs = next(
+        volume
+        for volume in filemon["spec"]["template"]["spec"]["volumes"]
+        if volume["name"] == "logs-volume"
+    )
+    assert filemon_logs["hostPath"] == {
+        "path": "/var/lib/jcode-watcher/filemon-logs",
+        "type": "DirectoryOrCreate",
+    }
+    snapshot_volume = next(
+        volume
+        for volume in filemon["spec"]["template"]["spec"]["volumes"]
+        if volume["name"] == "snapshot-volume"
+    )
+    expected_snapshot_claim = (
+        "watcher-filemon-pvc" if environment == "dev" else "watcher-filemon-pvc-v2"
+    )
+    assert (
+        snapshot_volume["persistentVolumeClaim"]["claimName"]
+        == expected_snapshot_claim
+    )
+    pvc_names = {
+        item["metadata"]["name"]
+        for item in items
+        if item["kind"] == "PersistentVolumeClaim"
+    }
+    if environment == "dev":
+        assert "watcher-filemon-pvc" in pvc_names
+    else:
+        assert "watcher-filemon-pvc" not in pvc_names
+        assert "watcher-filemon-pvc-v2" not in pvc_names
+    assert "watcher-filemon-logs-pvc" not in pvc_names
+
+    procmon = find(items, "DaemonSet", "watcher-procmon")
+    procmon_pod = procmon["spec"]["template"]["spec"]
+    procmon_container = procmon_pod["containers"][0]
+    assert env(procmon_container)["LOG_BACKUP_COUNT"]["value"] == "5"
+    procmon_logs = next(
+        volume for volume in procmon_pod["volumes"] if volume["name"] == "logs"
+    )
+    assert procmon_logs["hostPath"] == {
+        "path": "/var/lib/jcode-watcher/procmon-logs",
+        "type": "DirectoryOrCreate",
+    }
+    assert "watcher-procmon-logs-pvc" not in pvc_names
 
     for item in items:
         pod_spec = item.get("spec", {}).get("template", {}).get("spec", {})

@@ -80,26 +80,6 @@ patches:
       - op: replace
         path: /spec/resources/requests/storage
         value: 5Gi
-  - target:
-      kind: PersistentVolumeClaim
-      name: watcher-filemon-logs-pvc
-    patch: |-
-      - op: replace
-        path: /spec/storageClassName
-        value: nfs-dev
-      - op: replace
-        path: /spec/resources/requests/storage
-        value: 1Gi
-  - target:
-      kind: PersistentVolumeClaim
-      name: watcher-procmon-logs-pvc
-    patch: |-
-      - op: replace
-        path: /spec/storageClassName
-        value: nfs-dev
-      - op: replace
-        path: /spec/resources/requests/storage
-        value: 1Gi
 images:
   - name: harbor.jedutools.io/jdevops/watcher-backend
     newName: harbor.jedutools.io/jdevops/watcher-backend

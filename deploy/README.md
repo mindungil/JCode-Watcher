@@ -16,7 +16,13 @@ Backend와 migration Job에는 SQLite PVC를 마운트하지 않습니다. Postg
 
 Filemon과 Procmon은 강의 Namespace의 `jcode.io/course-id` annotation을 읽어 `course_id`를 결정합니다. 이 권한은 `watcher-course-metadata-reader` ClusterRole의 Namespace `get`으로 제한됩니다.
 
-수집 이벤트는 전송 전에 노드별 `event-spool.db`에 기록됩니다. Backend 장애나 수집기 재시작 후에도 같은 `event_id`로 배치 재전송되며, Backend는 배치를 한 트랜잭션으로 저장합니다. 로그 PVC는 수집기보다 먼저 삭제하지 않습니다.
+수집 이벤트는 전송 전에 노드별 hostPath의 `event-spool.db`에 기록됩니다. Backend 장애나 수집기 재시작 후에도 같은 `event_id`로 배치 재전송되며, Backend는 배치를 한 트랜잭션으로 저장합니다. 해당 노드가 유실되면 미전송 이벤트도 함께 유실될 수 있으므로 노드 폐기 전 spool 잔여량을 확인합니다.
+
+Production Filemon snapshot 볼륨은 클러스터에서 관리하는 `watcher-filemon-pvc-v2`를 참조합니다. Kustomize는 이 PVC를 생성하거나 변경하지 않으며 기존 `watcher-filemon-pvc`로 되돌리지 않습니다.
+
+Filemon의 `/ready`는 NFS 감시 Observer와 이벤트 재전송 루프가 시작된 뒤에만 200을 반환합니다. `/metrics`는 liveness와 메트릭 수집용이며 readiness 기준으로 사용하지 않습니다.
+
+Filemon과 Procmon 로그 및 spool은 노드별 hostPath에 분리합니다. 로그는 파일당 10MiB, 백업 5개로 순환하며 기존 로그 PVC를 다시 마운트하지 않습니다. 기존 PVC는 이 매니페스트에서 삭제하지 않습니다.
 
 ## SQLite 보관 경계
 

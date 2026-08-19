@@ -34,10 +34,11 @@ class Settings(BaseSettings):
     LOG_FILE_PATH: str = "/opt/filemon/logs/"
     LOG_LEVEL: str = "INFO"
     LOG_MAX_BYTES: int = 10 * 1024 * 1024  # 10MB
-    LOG_BACKUP_COUNT: int = 0
+    LOG_BACKUP_COUNT: int = 5
 
     # Metrics 설정
     METRICS_PORT: int = 3000
+    READINESS_PORT: int = 3001
 
 
 # 애플리케이션 전체에서 사용할 단일 설정 인스턴스

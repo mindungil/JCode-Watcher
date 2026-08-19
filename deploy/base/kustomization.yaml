@@ -7,6 +7,5 @@ resources:
   - filemon-daemonset.yaml
   - filemon-service.yaml
   - filemon-servicemonitor.yaml
-  - procmon-pvc.yaml
   - procmon-daemonset.yaml
   - procmon-service.yaml

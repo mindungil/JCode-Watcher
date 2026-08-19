@@ -20,10 +20,12 @@ spec:
         ports:
         - name: http-metrics
           containerPort: 3000
+        - name: http-ready
+          containerPort: 3001
         readinessProbe:
           httpGet:
-            path: /metrics
-            port: http-metrics
+            path: /ready
+            port: http-ready
           initialDelaySeconds: 5
           periodSeconds: 10
         livenessProbe:
@@ -48,6 +50,8 @@ spec:
           mountPath: /watcher/snapshots
         - name: logs-volume
           mountPath: /opt/filemon/logs
+        - name: spool-volume
+          mountPath: /var/lib/jcode-watcher/spool
         env:
         - name: MY_NODE_NAME
           valueFrom:
@@ -62,7 +66,11 @@ spec:
         - name: JCODE_ENVIRONMENT
           value: "prod"
         - name: SPOOL_PATH
-          value: "/opt/filemon/logs/$(MY_NODE_NAME)-event-spool.db"
+          value: "/var/lib/jcode-watcher/spool/event-spool.db"
+        - name: READINESS_PORT
+          value: "3001"
+        - name: LOG_BACKUP_COUNT
+          value: "5"
       imagePullSecrets:
       - name: watcher-harbor-registry-secret
       volumes:
@@ -73,5 +81,10 @@ spec:
         persistentVolumeClaim:
           claimName: watcher-filemon-pvc
       - name: logs-volume
-        persistentVolumeClaim:
-          claimName: watcher-filemon-logs-pvc
+        hostPath:
+          path: /var/lib/jcode-watcher/filemon-logs
+          type: DirectoryOrCreate
+      - name: spool-volume
+        hostPath:
+          path: /var/lib/jcode-watcher/filemon-spool
+          type: DirectoryOrCreate

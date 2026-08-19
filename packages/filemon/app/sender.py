@@ -121,7 +121,10 @@ class SnapshotSender:
                 record_api_request("failure")
                 return 0
 
-    async def run_retry_loop(self):
+    async def run_retry_loop(self, started_event: asyncio.Event | None = None):
         while True:
             await self.flush_once()
+            if started_event is not None:
+                started_event.set()
+                started_event = None
             await asyncio.sleep(settings.SPOOL_RETRY_SECONDS)
