@@ -1,11 +1,13 @@
+from db.url import normalize_database_url
 from schemas.config import settings
 from sqlalchemy import text
 from sqlmodel import Session, SQLModel, create_engine
 
-db_url = settings.DB_URL
+db_url = normalize_database_url(settings.DB_URL)
 
 
 def build_engine(url: str):
+    url = normalize_database_url(url)
     options = {"echo": False, "pool_pre_ping": True}
     if url.startswith("sqlite:"):
         options["connect_args"] = {
@@ -14,11 +16,6 @@ def build_engine(url: str):
             "isolation_level": "IMMEDIATE",
         }
     else:
-        if not url.startswith("postgresql+psycopg://"):
-            raise RuntimeError(
-                "DB_URL은 postgresql+psycopg:// 또는 "
-                "테스트용 sqlite:// 형식이어야 합니다."
-            )
         options.update(
             pool_size=settings.DB_POOL_SIZE,
             max_overflow=settings.DB_MAX_OVERFLOW,

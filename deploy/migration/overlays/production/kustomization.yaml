@@ -4,6 +4,6 @@ resources:
   - ../../base
 namespace: watcher
 images:
-  - name: harbor.jbnu.ac.kr/jdevops/watcher-backend
-    newName: harbor.jbnu.ac.kr/jdevops/watcher-backend
+  - name: harbor.jedutools.io/jdevops/watcher-backend
+    newName: harbor.jedutools.io/jdevops/watcher-backend
     digest: sha256:REPLACE_WITH_VERIFIED_DIGEST

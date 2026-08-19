@@ -1,81 +1,24 @@
-name: Build & Push
+name: Image build
 
 on:
-  push:
+  pull_request:
     branches: [develop]
-    paths: ['packages/**']
-  workflow_dispatch:
+    paths:
+      - "packages/**"
+
+permissions:
+  contents: read
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    
+    strategy:
+      matrix:
+        component: [backend, filemon, procmon]
     steps:
       - uses: actions/checkout@v4
-      
-      - name: Login to Harbor
-        env:
-          HARBOR_USERNAME: ${{ secrets.HARBOR_USERNAME }}
-          HARBOR_PASSWORD: ${{ secrets.HARBOR_PASSWORD }}
-        run: |
-          for attempt in 1 2 3 4 5; do
-            if printf '%s' "$HARBOR_PASSWORD" | timeout 30 docker login harbor.jbnu.ac.kr --username "$HARBOR_USERNAME" --password-stdin; then
-              exit 0
-            fi
-            sleep $((attempt * 5))
-          done
-          exit 1
       - uses: docker/setup-buildx-action@v3
-      
-      - name: Check changes
-        id: changes
-        uses: dorny/paths-filter@v3
+      - uses: docker/build-push-action@v6
         with:
-          filters: |
-            backend:
-              - 'packages/backend/**'
-            filemon:
-              - 'packages/filemon/**'
-            procmon:
-              - 'packages/procmon/**'
-      
-      - name: Build backend
-        id: backend
-        if: steps.changes.outputs.backend == 'true'
-        uses: docker/build-push-action@v6
-        with:
-          context: packages/backend
-          push: true
-          tags: harbor.jbnu.ac.kr/jdevops/watcher-backend:${{ github.sha }}
-          provenance: true
-          sbom: true
-
-      - name: Build filemon
-        id: filemon
-        if: steps.changes.outputs.filemon == 'true'
-        uses: docker/build-push-action@v6
-        with:
-          context: packages/filemon
-          push: true
-          tags: harbor.jbnu.ac.kr/jdevops/watcher-filemon:${{ github.sha }}
-          provenance: true
-          sbom: true
-      
-      - name: Build procmon  
-        id: procmon
-        if: steps.changes.outputs.procmon == 'true'
-        uses: docker/build-push-action@v6
-        with:
-          context: packages/procmon
-          push: true
-          tags: harbor.jbnu.ac.kr/jdevops/watcher-procmon:${{ github.sha }}
-          provenance: true
-          sbom: true
-
-      - name: Record image digests
-        run: |
-          {
-            echo "backend=${{ steps.backend.outputs.digest }}"
-            echo "filemon=${{ steps.filemon.outputs.digest }}"
-            echo "procmon=${{ steps.procmon.outputs.digest }}"
-          } >> "$GITHUB_STEP_SUMMARY"
+          context: packages/${{ matrix.component }}
+          push: false

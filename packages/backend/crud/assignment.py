@@ -5,10 +5,11 @@ from models.runLog import RunLog
 from models.snapshot import Snapshot
 from sqlalchemy import func
 from sqlmodel import Session, select
+from utils.assignment_key import assignment_predicates
 
 
 def get_monitoring_summary(db: Session, class_div: str, hw_name: str):
-    filters = (Snapshot.class_div == class_div, Snapshot.hw_name == hw_name)
+    filters = assignment_predicates(Snapshot, class_div, hw_name)
     distribution = db.exec(
         select(
             func.percentile_cont(0.9).within_group(Snapshot.file_size),
@@ -57,18 +58,18 @@ def get_monitoring_summary(db: Session, class_div: str, hw_name: str):
 def get_graph_data(
     db: Session, class_div: str, hw_name: str, start: datetime, end: datetime
 ):
-    previous_size = func.lag(Snapshot.file_size, 1, 0).over(
+    previous_size = func.lag(Snapshot.file_size).over(
         partition_by=(Snapshot.student_key, Snapshot.relative_path),
         order_by=(Snapshot.occurred_at, Snapshot.id),
     )
     deltas = (
         select(
             Snapshot.student_key.label("student_key"),
+            previous_size.label("previous_size"),
             func.abs(Snapshot.file_size - previous_size).label("size_change"),
         )
         .where(
-            Snapshot.class_div == class_div,
-            Snapshot.hw_name == hw_name,
+            *assignment_predicates(Snapshot, class_div, hw_name),
             Snapshot.occurred_at >= start,
             Snapshot.occurred_at <= end,
         )
@@ -76,6 +77,7 @@ def get_graph_data(
     )
     return db.exec(
         select(deltas.c.student_key, func.sum(deltas.c.size_change))
+        .where(deltas.c.previous_size.is_not(None))
         .group_by(deltas.c.student_key)
         .order_by(deltas.c.student_key)
     ).all()
@@ -85,10 +87,7 @@ def _event_average(db: Session, model, class_div: str, hw_name: str) -> float:
     count, students = db.exec(
         select(
             func.count(model.id), func.count(func.distinct(model.student_key))
-        ).where(
-            model.class_div == class_div,
-            model.hw_name == hw_name,
-        )
+        ).where(*assignment_predicates(model, class_div, hw_name))
     ).one()
     return round((count or 0) / students, 2) if students else 0.0
 

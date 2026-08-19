@@ -15,15 +15,14 @@ spec:
         - name: watcher-harbor-registry-secret
       containers:
         - name: migrate
-          image: harbor.jbnu.ac.kr/jdevops/watcher-backend:REPLACE_WITH_COMMIT_SHA
-          command: ["python", "-m", "db.migrate"]
+          image: harbor.jedutools.io/jdevops/watcher-backend:REPLACE_WITH_COMMIT_SHA
+          workingDir: /app
+          command: ["alembic", "-c", "alembic.ini", "upgrade", "head"]
           env:
             - name: DB_URL
-              value: sqlite:////app/data/database.db
-          volumeMounts:
-            - name: data-storage
-              mountPath: /app/data
-      volumes:
-        - name: data-storage
-          persistentVolumeClaim:
-            claimName: watcher-backend-pvc
+              valueFrom:
+                secretKeyRef:
+                  name: watcher-postgres-app
+                  key: uri
+            - name: AUTO_CREATE_SCHEMA
+              value: "false"

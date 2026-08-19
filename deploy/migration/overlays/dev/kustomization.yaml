@@ -5,18 +5,7 @@ resources:
   - namespace.yaml
   - registry-secret.yaml
 namespace: dev
-patches:
-  - target:
-      kind: PersistentVolumeClaim
-      name: watcher-backend-pvc
-    patch: |-
-      - op: replace
-        path: /spec/storageClassName
-        value: nfs-dev
-      - op: replace
-        path: /spec/resources/requests/storage
-        value: 5Gi
 images:
-  - name: harbor.jbnu.ac.kr/jdevops/watcher-backend
-    newName: harbor.jbnu.ac.kr/jdevops/watcher-backend
+  - name: harbor.jedutools.io/jdevops/watcher-backend
+    newName: harbor.jedutools.io/jdevops/watcher-backend
     digest: sha256:REPLACE_WITH_VERIFIED_DIGEST

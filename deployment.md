@@ -1,5 +1,7 @@
 ## Watcher 쿠버네티스 배포 가이드
 
+> 현재 PostgreSQL 배포 절차는 `deploy/README.md`를 기준으로 합니다. 이 문서의 기존 SQLite 항목은 과거 보관 구조 설명이며 신규 배포에 사용하지 않습니다.
+
 ### 🎯 배포 목표
 
 JCode 플랫폼의 학습자 모니터링을 위한 Watcher 시스템을 Kubernetes 클러스터에 배포합니다. 
@@ -12,7 +14,7 @@ JCode 플랫폼의 학습자 모니터링을 위한 Watcher 시스템을 Kuberne
 
 - 역할: 모든 모니터링 데이터를 수집하는 중앙 API 서버
 - 포트: 3000번 (HTTP API)
-- 스토리지: SQLite 데이터베이스 저장용 PVC
+- 스토리지: PostgreSQL 연결 Secret 사용(Backend에 SQLite PVC 미마운트)
 - 배포 방식: Deployment로 배포
 
 **2. watcher-filemon**
@@ -165,24 +167,24 @@ cd JCode-Watcher
 
 ```bash
 cd packages/backend
-docker build -t harbor.jbnu.ac.kr/jdevops/watcher-backend:<VERSION_TAG> .
+docker build -t harbor.jedutools.io/jdevops/watcher-backend:<VERSION_TAG> .
 
 cd ../filemon
-docker build -t harbor.jbnu.ac.kr/jdevops/watcher-filemon:<VERSION_TAG> .
+docker build -t harbor.jedutools.io/jdevops/watcher-filemon:<VERSION_TAG> .
 
 cd ../procmon
-docker build -t harbor.jbnu.ac.kr/jdevops/watcher-procmon:<VERSION_TAG> .
+docker build -t harbor.jedutools.io/jdevops/watcher-procmon:<VERSION_TAG> .
 ```
 
 **빌드 완료 확인:**
 
 ```bash
-docker images | grep harbor.jbnu.ac.kr/jdevops/watcher
+docker images | grep harbor.jedutools.io/jdevops/watcher
 
 # 성공하면 다음 메시지가 출력됩니다:
-# harbor.jbnu.ac.kr/jdevops/watcher-backend    <VERSION_TAG>
-# harbor.jbnu.ac.kr/jdevops/watcher-filemon    <VERSION_TAG>
-# harbor.jbnu.ac.kr/jdevops/watcher-procmon    <VERSION_TAG>
+# harbor.jedutools.io/jdevops/watcher-backend    <VERSION_TAG>
+# harbor.jedutools.io/jdevops/watcher-filemon    <VERSION_TAG>
+# harbor.jedutools.io/jdevops/watcher-procmon    <VERSION_TAG>
 ```
 
 ### 🚀 3단계: Harbor 레지스트리에 이미지 업로드
@@ -190,7 +192,7 @@ docker images | grep harbor.jbnu.ac.kr/jdevops/watcher
 #### Harbor 로그인
 
 ```bash
-docker login harbor.jbnu.ac.kr
+docker login harbor.jedutools.io
 
 # 성공하면 다음 메시지가 출력됩니다:
 # Login Succeeded
@@ -201,16 +203,16 @@ docker login harbor.jbnu.ac.kr
 빌드된 3개 이미지를 모두 레지스트리에 업로드합니다:
 
 ```bash
-docker push harbor.jbnu.ac.kr/jdevops/watcher-backend:<VERSION_TAG>
-docker push harbor.jbnu.ac.kr/jdevops/watcher-filemon:<VERSION_TAG>
-docker push harbor.jbnu.ac.kr/jdevops/watcher-procmon:<VERSION_TAG>
+docker push harbor.jedutools.io/jdevops/watcher-backend:<VERSION_TAG>
+docker push harbor.jedutools.io/jdevops/watcher-filemon:<VERSION_TAG>
+docker push harbor.jedutools.io/jdevops/watcher-procmon:<VERSION_TAG>
 
 # 성공하면 다음 메시지가 출력됩니다:
 # <VERSION_TAG>: digest: sha256:abc123... size: 1234
 ```
 
 **업로드 확인:**
-Harbor 웹 인터페이스(`https://harbor.jbnu.ac.kr`)에서 `jdevops` 프로젝트를 확인하여 3개 이미지가 업로드되었는지 확인하세요.
+Harbor 웹 인터페이스(`https://harbor.jedutools.io`)에서 `jdevops` 프로젝트를 확인하여 3개 이미지가 업로드되었는지 확인하세요.
 
 ### ☸️ 4단계: Kubernetes 클러스터에 배포
 
@@ -220,7 +222,7 @@ Harbor 레지스트리 접근 권한을 설정합니다:
 
 ```bash
  kubectl create secret docker-registry watcher-harbor-registry-secret \
-  --docker-server=harbor.jbnu.ac.kr \
+  --docker-server=harbor.jedutools.io \
   --docker-username=<실제사용자명> \
   --docker-password=<실제비밀번호> \
   -n watcher
@@ -239,9 +241,6 @@ kubectl get secret -n watcher watcher-harbor-registry-secret
 서비스가 사용할 영구 볼륨을 먼저 생성합니다:
 
 ```bash
-# 백엔드 데이터베이스용 스토리지
-kubectl apply -f packages/backend/watcher-backend-pvc.yaml
-
 # 파일 스냅샷 저장용 스토리지
 kubectl apply -f packages/filemon/watcher-filemon-pvc.yaml
 ```
@@ -252,11 +251,10 @@ kubectl apply -f packages/filemon/watcher-filemon-pvc.yaml
 kubectl get pvc -n watcher
 ```
 
-다음과 같이 2개의 PVC가 `Bound` 상태여야 합니다:
+파일 스냅샷 PVC가 `Bound` 상태여야 합니다. 기존 `watcher-backend-pvc`는 과거 SQLite 보관용으로 남을 수 있지만 신규 Backend에는 마운트하지 않습니다.
 
 ```
 NAME                           STATUS   VOLUME    CAPACITY   ACCESS MODES   STORAGECLASS
-watcher-backend-pvc            Bound    pvc-...   10Gi       RWX            longhorn
 watcher-filemon-storage-pvc    Bound    pvc-...   30Gi       RWX            longhorn
 ```
 
@@ -305,7 +303,7 @@ nfs:
 spec:
   containers:
     - name: watcher-filemon
-      image: harbor.jbnu.ac.kr/jdevops/watcher-filemon:20250729-1
+      image: harbor.jedutools.io/jdevops/watcher-filemon:20250729-1
   #...
   volumes:
     - name: jcode-vol
@@ -324,11 +322,14 @@ spec:
 ```yaml
 env:
   - name: DB_URL
-    value: "sqlite:////app/data/database.db" # SQLite 데이터베이스 경로
+    valueFrom:
+      secretKeyRef:
+        name: watcher-postgres-app
+        key: uri
 ```
 
-- `DB_URL`: 백엔드에서 사용할 데이터베이스 연결 정보
-- SQLite 파일은 PVC 마운트된 `/app/data` 디렉토리에 저장됩니다
+- `DB_URL`: `postgresql+psycopg://` 연결 문자열을 Secret에서 읽습니다.
+- 신규 Watcher에는 기존 SQLite PVC를 마운트하지 않습니다.
 
 **2. watcher-filemon 환경변수 (`packages/filemon/watcher-filemon.yaml`)**
 
@@ -376,12 +377,12 @@ env:
 
 ```yaml
 # 현재 설정된 태그
-image: harbor.jbnu.ac.kr/jdevops/watcher-backend:20250729-1
-image: harbor.jbnu.ac.kr/jdevops/watcher-filemon:20250729-1
-image: harbor.jbnu.ac.kr/jdevops/watcher-procmon:20250729-1
+image: harbor.jedutools.io/jdevops/watcher-backend:20250729-1
+image: harbor.jedutools.io/jdevops/watcher-filemon:20250729-1
+image: harbor.jedutools.io/jdevops/watcher-procmon:20250729-1
 
 # 필요시 본인이 빌드한 태그로 변경
-image: harbor.jbnu.ac.kr/jdevops/watcher-backend:<VERSION_TAG>
+image: harbor.jedutools.io/jdevops/watcher-backend:<VERSION_TAG>
 ```
 
 #### 애플리케이션 서비스 배포

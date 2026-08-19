@@ -35,7 +35,7 @@ class EventPageItem(BaseModel):
 
 class EventPage(BaseModel):
     items: list[EventPageItem]
-    next_cursor: int | None = None
+    next_cursor: str | None = None
 
 
 class SnapshotPageItem(BaseModel):
@@ -48,4 +48,4 @@ class SnapshotPageItem(BaseModel):
 
 class SnapshotPage(BaseModel):
     items: list[SnapshotPageItem]
-    next_cursor: int | None = None
+    next_cursor: str | None = None

@@ -3,8 +3,7 @@ import argparse
 import re
 from pathlib import Path
 
-
-IMAGE_PREFIX = "harbor.jbnu.ac.kr/jdevops/"
+IMAGE_PREFIX = "harbor.jedutools.io/jdevops/"
 
 
 def validate_digest(value: str) -> str:
@@ -21,7 +20,7 @@ def set_digest(path: Path, image: str, digest: str) -> None:
             continue
         for digest_index in range(index + 1, min(index + 5, len(lines))):
             if lines[digest_index].lstrip().startswith("digest:"):
-                indent = lines[digest_index][:-len(lines[digest_index].lstrip())]
+                indent = lines[digest_index][: -len(lines[digest_index].lstrip())]
                 lines[digest_index] = f"{indent}digest: {digest}"
                 path.write_text("\n".join(lines) + "\n", encoding="utf-8")
                 return

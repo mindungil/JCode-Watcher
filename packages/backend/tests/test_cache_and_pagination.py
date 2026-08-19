@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from uuid import uuid4
 
 from crud.student import get_build_log
@@ -7,7 +7,15 @@ from models.runLog import RunLog
 from models.snapshot import Snapshot
 from sqlalchemy.pool import StaticPool
 from sqlmodel import Session, SQLModel, create_engine
+from utils.assignment_key import assignment_id_from_hw_name
 from utils.cache import BoundedTTLCache, cache, invalidate_log_cache, log_cache_key
+from utils.cursor import encode_event_cursor
+
+
+def test_v2_workspace_key_uses_immutable_assignment_id():
+    assert assignment_id_from_hw_name("assignment-42") == 42
+    assert assignment_id_from_hw_name("homework-42") is None
+    assert assignment_id_from_hw_name("assignment-42-renamed") is None
 
 
 def build_event(index: int, occurred_at: datetime) -> BuildLog:
@@ -48,12 +56,17 @@ def test_build_log_query_is_bounded_and_cursor_is_stable():
     now = datetime.now(timezone.utc)
     with Session(engine) as session:
         session.add_all(
-            [build_event(index, now + timedelta(seconds=index)) for index in range(5)]
+            [build_event(index, now) for index in range(5)]
         )
         session.commit()
         first = get_build_log(session, "os-1", "assignment-42", 1, limit=2)
         second = get_build_log(
-            session, "os-1", "assignment-42", 1, limit=2, cursor=first[1].id
+            session,
+            "os-1",
+            "assignment-42",
+            1,
+            limit=2,
+            cursor=encode_event_cursor(first[1].occurred_at, first[1].id),
         )
     assert [row.id for row in first[:2]] == [5, 4]
     assert [row.id for row in second[:2]] == [3, 2]

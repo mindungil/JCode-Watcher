@@ -9,6 +9,9 @@ class Settings(BaseSettings):
     LOG_LEVEL: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
     API_SERVER: str = "http://localhost:8000"
     API_TIMEOUT_TOTAL: int = 20
+    SPOOL_PATH: str = "/var/lib/jcode-watcher/spool/event-spool.db"
+    SPOOL_BATCH_SIZE: int = 100
+    SPOOL_RETRY_SECONDS: float = 2
     JCODE_ENVIRONMENT: Literal["dev", "prod"] = "prod"
     COURSE_ID_MAP_JSON: str = ""
     COURSE_ID_CACHE_SECONDS: int = 300
@@ -25,7 +28,7 @@ class Settings(BaseSettings):
     # 로깅 설정
     LOG_FILE_PATH: str = "/opt/procmon/logs/procmon.log"
     LOG_MAX_BYTES: int = 10 * 1024 * 1024  # 10MB
-    LOG_BACKUP_COUNT: int = 0  # 무제한
+    LOG_BACKUP_COUNT: int = 5
 
 
 # 설정 객체 인스턴스화

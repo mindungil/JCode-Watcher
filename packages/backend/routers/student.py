@@ -1,8 +1,7 @@
 from datetime import datetime
-from typing import List
 
 from db.connection import get_session
-from fastapi import APIRouter, Depends, Query, Response
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from schemas.student import (
     BuildLogResponse,
     GraphResponse,
@@ -90,7 +89,7 @@ async def get_graph_data_by_minutes(
 # 빌드 로그 조회
 @router.get(
     "/api/{class_div}/{hw_name}/{student_id}/logs/build",
-    response_model=List[BuildLogResponse],
+    response_model=list[BuildLogResponse],
 )
 def get_build_log(
     class_div: str,
@@ -100,12 +99,15 @@ def get_build_log(
     from_time: datetime | None = Query(default=None, alias="from"),
     to_time: datetime | None = Query(default=None, alias="to"),
     limit: int = Query(default=200, ge=1, le=1000),
-    cursor: int | None = Query(default=None, ge=1),
+    cursor: str | None = Query(default=None),
     db: Session = Depends(get_session),
 ):
-    items, next_cursor = fetch_build_log(
-        db, class_div, hw_name, student_id, from_time, to_time, limit, cursor
-    )
+    try:
+        items, next_cursor = fetch_build_log(
+            db, class_div, hw_name, student_id, from_time, to_time, limit, cursor
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     if next_cursor is not None:
         response.headers["X-Next-Cursor"] = str(next_cursor)
     return items
@@ -114,7 +116,7 @@ def get_build_log(
 # 실행 로그 조회
 @router.get(
     "/api/{class_div}/{hw_name}/{student_id}/logs/run",
-    response_model=List[RunLogResponse],
+    response_model=list[RunLogResponse],
 )
 def get_run_log(
     class_div: str,
@@ -124,12 +126,15 @@ def get_run_log(
     from_time: datetime | None = Query(default=None, alias="from"),
     to_time: datetime | None = Query(default=None, alias="to"),
     limit: int = Query(default=200, ge=1, le=1000),
-    cursor: int | None = Query(default=None, ge=1),
+    cursor: str | None = Query(default=None),
     db: Session = Depends(get_session),
 ):
-    items, next_cursor = fetch_run_log(
-        db, class_div, hw_name, student_id, from_time, to_time, limit, cursor
-    )
+    try:
+        items, next_cursor = fetch_run_log(
+            db, class_div, hw_name, student_id, from_time, to_time, limit, cursor
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     if next_cursor is not None:
         response.headers["X-Next-Cursor"] = str(next_cursor)
     return items

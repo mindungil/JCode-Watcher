@@ -3,6 +3,7 @@ from models.runLog import RunLog
 from models.snapshot import Snapshot
 from sqlalchemy import case, func
 from sqlmodel import Session, select
+from utils.assignment_key import assignment_predicates
 
 
 def _dashboard_summaries(
@@ -103,7 +104,7 @@ def get_dashboard_summaries(
     keys = [str(value) for value in student_ids]
     rows = _dashboard_summaries(
         db,
-        lambda model: (model.class_div == class_div, model.hw_name == hw_name),
+        lambda model: assignment_predicates(model, class_div, hw_name),
         keys,
     )
     return {int(key): {**row, "student_id": int(key)} for key, row in rows.items()}
