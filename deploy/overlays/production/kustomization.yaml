@@ -3,31 +3,6 @@ kind: Kustomization
 resources:
   - ../../base
 namespace: watcher
-patches:
-  - target:
-      kind: PersistentVolumeClaim
-      name: watcher-filemon-pvc
-    patch: |-
-      apiVersion: v1
-      kind: PersistentVolumeClaim
-      metadata:
-        name: watcher-filemon-pvc
-      $patch: delete
-  - target:
-      kind: DaemonSet
-      name: watcher-filemon
-    patch: |-
-      apiVersion: apps/v1
-      kind: DaemonSet
-      metadata:
-        name: watcher-filemon
-      spec:
-        template:
-          spec:
-            volumes:
-              - name: snapshot-volume
-                persistentVolumeClaim:
-                  claimName: watcher-filemon-pvc-v2
 replicas:
   - name: watcher-backend
     count: 2
