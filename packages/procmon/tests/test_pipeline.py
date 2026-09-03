@@ -343,16 +343,22 @@ class TestPipelineIntegration(TestPipeline):
 
     @pytest.mark.asyncio
     async def test_student_parsing_failure(self):
-        """학생 정보 파싱 실패 테스트"""
+        """비학생 워크로드를 경고 없이 제외하는지 테스트"""
         # Given
         struct = self.create_mock_process_struct()
         self.mock_student_parser.parse_from_process.return_value = None
+        self.pipeline.logger = Mock()
 
         # When
         event = await self.pipeline.pipeline(struct)
 
         # Then
         assert event is None
+        self.pipeline.logger.debug.assert_called_once_with(
+            "비학생 워크로드 이벤트 제외",
+            hostname="jcode-os-1-202012180",
+        )
+        self.pipeline.logger.warning.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_process_filtering_no_homework_dir(self):
