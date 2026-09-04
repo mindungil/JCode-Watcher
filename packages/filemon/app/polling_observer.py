@@ -79,10 +79,16 @@ def scan_source_files(
                 path_string = str(path)
                 if not path_filter.should_process(path_string):
                     continue
+                descriptor = None
                 try:
-                    stat = os.stat(path, follow_symlinks=False)
-                except (FileNotFoundError, PermissionError):
+                    flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
+                    descriptor = os.open(path, flags)
+                    stat = os.fstat(descriptor)
+                except OSError:
                     continue
+                finally:
+                    if descriptor is not None:
+                        os.close(descriptor)
                 if not stat_module.S_ISREG(stat.st_mode):
                     continue
                 result[path_string] = FileSignature(

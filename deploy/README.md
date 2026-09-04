@@ -20,7 +20,7 @@ Filemon과 Procmon은 강의 Namespace의 `jcode.io/course-id` annotation을 읽
 
 Production Filemon snapshot 볼륨은 Longhorn `watcher-filemon-pvc`를 사용합니다. dev overlay는 같은 PVC 선언의 StorageClass와 크기만 `nfs-dev`, 5Gi로 변경합니다.
 
-Production Filemon은 공유 NFS에서 원격 Pod의 쓰기가 inotify로 전달되지 않는 제약을 피하기 위해 단일 Deployment로 실행합니다. 전체 NFS를 순회하지 않고 V2 불변 경로인 `사용자 작업공간/assignment-<id>` 아래의 지원 소스 파일만 5초 간격으로 비교합니다. 최초 스캔은 기준 상태만 만들며 이후 생성·수정·삭제부터 수집합니다.
+Production Filemon은 공유 NFS에서 원격 Pod의 쓰기가 inotify로 전달되지 않는 제약을 피하기 위해 단일 Deployment로 실행합니다. 전체 NFS를 순회하지 않고 V2 불변 경로인 `사용자 작업공간/assignment-<id>` 아래의 지원 소스 파일만 5초 간격으로 열어 NFS 속성 캐시를 갱신한 뒤 비교합니다. 최초 스캔은 기준 상태만 만들며 이후 생성·수정·삭제부터 수집합니다.
 
 `deploy/deploy.sh`는 과거 Filemon DaemonSet을 제거한 뒤 단일 Deployment를 적용합니다. 여러 Filemon 인스턴스를 동시에 실행하면 같은 NFS 이벤트를 중복 저장할 수 있으므로 replica 수는 1이고 교체 방식은 `Recreate`입니다.
 
