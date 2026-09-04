@@ -1,9 +1,12 @@
 apiVersion: apps/v1
-kind: DaemonSet
+kind: Deployment
 metadata:
   name: watcher-filemon
   namespace: watcher
 spec:
+  replicas: 1
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app: watcher-filemon
@@ -28,6 +31,19 @@ spec:
             port: http-ready
           initialDelaySeconds: 5
           periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /metrics
+            port: http-metrics
+          initialDelaySeconds: 20
+          periodSeconds: 20
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            cpu: 500m
+            memory: 256Mi
         volumeMounts:
         - name: jcode-vol
           mountPath: /watcher/codes
@@ -50,6 +66,10 @@ spec:
           value: "http://watcher-backend-service.watcher.svc.cluster.local:3000"
         - name: JCODE_ENVIRONMENT
           value: "prod"
+        - name: FILE_WATCH_MODE
+          value: "polling"
+        - name: FILE_POLL_INTERVAL_SECONDS
+          value: "5"
         - name: SPOOL_PATH
           value: "/var/lib/jcode-watcher/spool/event-spool.db"
         - name: READINESS_PORT
@@ -60,9 +80,8 @@ spec:
       - name: watcher-harbor-registry-secret
       volumes:
       - name: jcode-vol
-        nfs:
-          server: "pvc-5ba357bc-eaca-4585-8e2a-a19ff156887b.longhorn-system.svc.cluster.local"
-          path: "/pvc-5ba357bc-eaca-4585-8e2a-a19ff156887b"
+        persistentVolumeClaim:
+          claimName: jcode-vol-pvc
       - name: snapshot-volume
         persistentVolumeClaim:
           claimName: watcher-filemon-pvc

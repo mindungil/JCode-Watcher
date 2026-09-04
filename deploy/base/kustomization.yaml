@@ -4,7 +4,7 @@ resources:
   - backend.yaml
   - collector-rbac.yaml
   - filemon-pvc.yaml
-  - filemon-daemonset.yaml
+  - filemon-deployment.yaml
   - filemon-service.yaml
   - filemon-servicemonitor.yaml
   - procmon-daemonset.yaml

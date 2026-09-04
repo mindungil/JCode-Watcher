@@ -17,13 +17,14 @@ if [[ "$db_url" != postgresql://* && "$db_url" != postgresql+psycopg://* ]]; the
 fi
 unset db_url
 if [[ "$target" == "dev" ]]; then
-  for legacy in watcher-filemon watcher-proc; do
+  for legacy in watcher-proc; do
     if kubectl get deployment "$legacy" -n "$namespace" >/dev/null 2>&1; then
       kubectl scale deployment/"$legacy" -n "$namespace" --replicas=0
       kubectl rollout status deployment/"$legacy" -n "$namespace" --timeout=5m
     fi
   done
 fi
+kubectl delete daemonset watcher-filemon -n "$namespace" --ignore-not-found --wait=true
 if kubectl get deployment watcher-backend -n "$namespace" >/dev/null 2>&1; then
   kubectl scale deployment/watcher-backend -n "$namespace" --replicas=0
   kubectl rollout status deployment/watcher-backend -n "$namespace" --timeout=5m
@@ -41,5 +42,5 @@ kubectl wait -n "$namespace" --for=condition=complete job/watcher-backend-migrat
 
 kubectl apply -k "deploy/overlays/${target}"
 kubectl rollout status -n "$namespace" deployment/watcher-backend --timeout=5m
-kubectl rollout status -n "$namespace" daemonset/watcher-filemon --timeout=5m
+kubectl rollout status -n "$namespace" deployment/watcher-filemon --timeout=5m
 kubectl rollout status -n "$namespace" daemonset/watcher-procmon --timeout=5m

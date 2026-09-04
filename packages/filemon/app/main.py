@@ -5,6 +5,7 @@ from concurrent.futures import ThreadPoolExecutor
 from app.config.settings import settings
 from app.debouncer import Debouncer
 from app.pipeline import FilemonPipeline
+from app.polling_observer import SelectivePollingObserver
 from app.readiness import ReadinessState, start_readiness_server
 from app.sender import SnapshotSender
 from app.snapshot import SnapshotManager
@@ -58,11 +59,21 @@ async def main():
     logger.debug("의존성 객체 생성 완료",
                thread_pool_workers=settings.THREAD_POOL_WORKERS)
 
-    observer = Observer()
-    observer.schedule(handler, str(settings.WATCH_ROOT), recursive=True)
+    if settings.FILE_WATCH_MODE == "polling":
+        observer = SelectivePollingObserver(
+            watch_root=settings.WATCH_ROOT,
+            handler=handler,
+            path_filter=path_filter,
+            interval_seconds=settings.FILE_POLL_INTERVAL_SECONDS,
+        )
+    else:
+        observer = Observer()
+        observer.schedule(handler, str(settings.WATCH_ROOT), recursive=True)
     observer.start()
     logger.info("Filemon 시작 완료",
                watch_root=str(settings.WATCH_ROOT),
+               watch_mode=settings.FILE_WATCH_MODE,
+               poll_interval_seconds=settings.FILE_POLL_INTERVAL_SECONDS,
                snapshot_base=str(settings.SNAPSHOT_BASE),
                max_file_size=settings.MAX_CAPTURABLE_FILE_SIZE,
                api_server=settings.API_SERVER)

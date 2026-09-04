@@ -1,9 +1,12 @@
 apiVersion: apps/v1
-kind: DaemonSet
+kind: Deployment
 metadata:
   name: watcher-filemon
   namespace: watcher
 spec:
+  replicas: 1
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app: watcher-filemon
@@ -65,6 +68,10 @@ spec:
           value: "3000"
         - name: JCODE_ENVIRONMENT
           value: "prod"
+        - name: FILE_WATCH_MODE
+          value: "polling"
+        - name: FILE_POLL_INTERVAL_SECONDS
+          value: "5"
         - name: SPOOL_PATH
           value: "/var/lib/jcode-watcher/spool/event-spool.db"
         - name: READINESS_PORT

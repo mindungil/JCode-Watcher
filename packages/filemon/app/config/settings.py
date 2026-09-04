@@ -1,6 +1,7 @@
 from pathlib import Path
 from typing import Literal
 
+from pydantic import Field
 from pydantic_settings import BaseSettings
 
 
@@ -17,6 +18,8 @@ class Settings(BaseSettings):
     JCODE_ENVIRONMENT: Literal["dev", "prod"] = "prod"
     COURSE_ID_MAP_JSON: str = ""
     COURSE_ID_CACHE_SECONDS: int = 300
+    FILE_WATCH_MODE: Literal["native", "polling"] = "native"
+    FILE_POLL_INTERVAL_SECONDS: float = Field(default=5.0, gt=0)
     KUBERNETES_API_URL: str = ""
     KUBERNETES_SERVICE_HOST: str = "kubernetes.default.svc"
     KUBERNETES_SERVICE_PORT_HTTPS: int = 443
