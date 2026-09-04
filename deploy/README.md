@@ -18,9 +18,13 @@ Filemon과 Procmon은 강의 Namespace의 `jcode.io/course-id` annotation을 읽
 
 수집 이벤트는 전송 전에 노드별 hostPath의 `event-spool.db`에 기록됩니다. Backend 장애나 수집기 재시작 후에도 같은 `event_id`로 배치 재전송되며, Backend는 배치를 한 트랜잭션으로 저장합니다. 해당 노드가 유실되면 미전송 이벤트도 함께 유실될 수 있으므로 노드 폐기 전 spool 잔여량을 확인합니다.
 
-Production Filemon snapshot 볼륨은 클러스터에서 관리하는 `watcher-filemon-pvc-v2`를 참조합니다. Kustomize는 이 PVC를 생성하거나 변경하지 않으며 기존 `watcher-filemon-pvc`로 되돌리지 않습니다.
+Production Filemon snapshot 볼륨은 Longhorn `watcher-filemon-pvc`를 사용합니다. dev overlay는 같은 PVC 선언의 StorageClass와 크기만 `nfs-dev`, 5Gi로 변경합니다.
 
-Filemon의 `/ready`는 NFS 감시 Observer와 이벤트 재전송 루프가 시작된 뒤에만 200을 반환합니다. `/metrics`는 liveness와 메트릭 수집용이며 readiness 기준으로 사용하지 않습니다.
+Production Filemon은 공유 NFS에서 원격 Pod의 쓰기가 inotify로 전달되지 않는 제약을 피하기 위해 단일 Deployment로 실행합니다. 전체 NFS를 순회하지 않고 V2 불변 경로인 `사용자 작업공간/assignment-<id>` 아래의 지원 소스 파일만 5초 간격으로 열어 NFS 속성 캐시를 갱신한 뒤 비교합니다. 최초 스캔은 기준 상태만 만들며 이후 생성·수정·삭제부터 수집합니다.
+
+`deploy/deploy.sh`는 과거 Filemon DaemonSet을 제거한 뒤 단일 Deployment를 적용합니다. 여러 Filemon 인스턴스를 동시에 실행하면 같은 NFS 이벤트를 중복 저장할 수 있으므로 replica 수는 1이고 교체 방식은 `Recreate`입니다.
+
+Filemon의 `/ready`는 감시 스레드와 이벤트 재전송 루프가 시작된 뒤에만 200을 반환합니다. `/metrics`는 liveness와 메트릭 수집용이며 readiness 기준으로 사용하지 않습니다.
 
 Filemon과 Procmon 로그 및 spool은 노드별 hostPath에 분리합니다. 로그는 파일당 10MiB, 백업 5개로 순환하며 기존 로그 PVC를 다시 마운트하지 않습니다. 기존 PVC는 이 매니페스트에서 삭제하지 않습니다.
 

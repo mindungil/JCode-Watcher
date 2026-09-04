@@ -10,6 +10,10 @@ patches:
   - path: collector-node-selector.yaml
     target:
       kind: DaemonSet
+  - path: collector-node-selector.yaml
+    target:
+      kind: Deployment
+      name: watcher-filemon
   - path: servicemonitor-namespace.yaml
     target:
       kind: ServiceMonitor
@@ -39,11 +43,11 @@ patches:
         path: /subjects/0/namespace
         value: dev
   - target:
-      kind: DaemonSet
+      kind: Deployment
       name: watcher-filemon
     patch: |-
       apiVersion: apps/v1
-      kind: DaemonSet
+      kind: Deployment
       metadata:
         name: watcher-filemon
       spec:

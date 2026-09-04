@@ -50,8 +50,12 @@ def validate_release(path: Path, environment: str) -> None:
             "namespace": namespace,
         }
     ]
-    for name in ("watcher-filemon", "watcher-procmon"):
-        pod = find(items, "DaemonSet", name)["spec"]["template"]["spec"]
+    collector_kinds = {
+        "watcher-filemon": "Deployment",
+        "watcher-procmon": "DaemonSet",
+    }
+    for name, kind in collector_kinds.items():
+        pod = find(items, kind, name)["spec"]["template"]["spec"]
         assert pod["serviceAccountName"] == "watcher-course-reader"
         container = pod["containers"][0]
         collector_env = env(container)
@@ -76,13 +80,21 @@ def validate_release(path: Path, environment: str) -> None:
             for mount in container["volumeMounts"]
         )
 
-    filemon = find(items, "DaemonSet", "watcher-filemon")
+    filemon = find(items, "Deployment", "watcher-filemon")
+    assert filemon["spec"]["replicas"] == 1
+    assert filemon["spec"]["strategy"]["type"] == "Recreate"
     filemon_container = filemon["spec"]["template"]["spec"]["containers"][0]
     assert filemon_container["readinessProbe"]["httpGet"] == {
         "path": "/ready",
         "port": "http-ready",
     }
     assert env(filemon_container)["LOG_BACKUP_COUNT"]["value"] == "5"
+    assert env(filemon_container)["FILE_WATCH_MODE"]["value"] == "polling"
+    assert env(filemon_container)["FILE_POLL_INTERVAL_SECONDS"]["value"] == "5"
+    if environment == "dev":
+        assert filemon["spec"]["template"]["spec"]["nodeSelector"] == {
+            "env": "dev"
+        }
     filemon_logs = next(
         volume
         for volume in filemon["spec"]["template"]["spec"]["volumes"]
@@ -97,9 +109,7 @@ def validate_release(path: Path, environment: str) -> None:
         for volume in filemon["spec"]["template"]["spec"]["volumes"]
         if volume["name"] == "snapshot-volume"
     )
-    expected_snapshot_claim = (
-        "watcher-filemon-pvc" if environment == "dev" else "watcher-filemon-pvc-v2"
-    )
+    expected_snapshot_claim = "watcher-filemon-pvc"
     assert (
         snapshot_volume["persistentVolumeClaim"]["claimName"]
         == expected_snapshot_claim
@@ -109,11 +119,7 @@ def validate_release(path: Path, environment: str) -> None:
         for item in items
         if item["kind"] == "PersistentVolumeClaim"
     }
-    if environment == "dev":
-        assert "watcher-filemon-pvc" in pvc_names
-    else:
-        assert "watcher-filemon-pvc" not in pvc_names
-        assert "watcher-filemon-pvc-v2" not in pvc_names
+    assert "watcher-filemon-pvc" in pvc_names
     assert "watcher-filemon-logs-pvc" not in pvc_names
 
     procmon = find(items, "DaemonSet", "watcher-procmon")

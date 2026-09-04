@@ -17,6 +17,7 @@ class PathFilter:
     IGNORE_PATTERNS = [
         re.compile(r"/.*/(?:\.?env|ENV)/.+"),
         re.compile(r"/.*/(?:site|dist)-packages/.+"),
+        re.compile(r"/.*/node_modules/.+"),
         re.compile(r"/.*/lib(?:64|s)?/.+"),
         re.compile(r"/.*/\..+"),  # 숨김 파일/디렉토리
     ]
@@ -67,9 +68,9 @@ class PathFilter:
             if len(class_student_parts) != 3:
                 return False
 
-            # 2. 과제 폴더 검사 (동적 과제명 허용, 숨김 디렉토리 제외)
+            # 2. V2의 불변 과제 경로 검사
             hw_part = parts[1]
-            if not hw_part or hw_part.startswith('.'):
+            if not re.fullmatch(r"assignment-[1-9][0-9]*", hw_part):
                 return False
 
             # 3. 파일 확장자 검사

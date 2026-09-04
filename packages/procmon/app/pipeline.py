@@ -53,7 +53,9 @@ class Pipeline:
             # 학생 정보 파싱
             student_info = self.student_parser.parse_from_process(process)
             if not student_info:
-                self.logger.warning("학생 정보 파싱 실패", hostname=process.hostname)
+                self.logger.debug(
+                    "비학생 워크로드 이벤트 제외", hostname=process.hostname
+                )
                 return None
 
             # 사용자 정보 컨텍스트 주입
