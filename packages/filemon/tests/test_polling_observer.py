@@ -6,7 +6,9 @@ from watchdog.events import FileDeletedEvent, FileModifiedEvent
 
 from app.polling_observer import (
     FileSignature,
+    MutationMarker,
     SelectivePollingObserver,
+    apply_system_mutation_baselines,
     changed_events,
     scan_source_files,
 )
@@ -22,6 +24,20 @@ def test_scan_only_visits_v2_assignment_source_paths(tmp_path: Path):
     accepted.parent.mkdir(parents=True)
     accepted.write_text("print('ok')", encoding="utf-8")
     (accepted.parent / "notes.txt").write_text("skip", encoding="utf-8")
+
+    deep = (
+        tmp_path
+        / "course-1-202117547"
+        / "assignment-53"
+        / "modules"
+        / "sorting"
+        / "src"
+        / "main"
+        / "python"
+        / "solution.py"
+    )
+    deep.parent.mkdir(parents=True)
+    deep.write_text("print('deep')", encoding="utf-8")
 
     legacy = tmp_path / "course-1-202117547" / "과제명" / "legacy.py"
     legacy.parent.mkdir(parents=True)
@@ -39,7 +55,7 @@ def test_scan_only_visits_v2_assignment_source_paths(tmp_path: Path):
 
     snapshot = scan_source_files(tmp_path, AllowPythonFiles())
 
-    assert set(snapshot) == {str(accepted)}
+    assert set(snapshot) == {str(accepted), str(deep)}
 
 
 def test_changed_events_maps_create_modify_and_delete():
@@ -62,6 +78,47 @@ def test_changed_events_maps_create_modify_and_delete():
         (FileModifiedEvent, created),
         (FileModifiedEvent, modified),
     ]
+
+
+def test_completed_system_mutation_suppresses_only_generator_changes():
+    root = "/watcher/codes/course-1-user/assignment-1"
+    generated = f"{root}/starter.py"
+    student = f"{root}/answer.py"
+    old = FileSignature(mtime_ns=1, size=1, inode=1)
+    generated_now = FileSignature(mtime_ns=10, size=2, inode=1)
+    student_now = FileSignature(mtime_ns=12, size=2, inode=1)
+    marker = MutationMarker(
+        signature=FileSignature(mtime_ns=11, size=1, inode=2),
+        state="completed",
+    )
+
+    comparison = apply_system_mutation_baselines(
+        {generated: old, student: old},
+        {generated: generated_now, student: student_now},
+        {},
+        {root: marker},
+    )
+
+    assert [(event.event_type, event.src_path) for event in changed_events(
+        comparison, {generated: generated_now, student: student_now}
+    )] == [("modified", student)]
+
+
+def test_in_progress_system_mutation_rebaselines_the_whole_assignment():
+    root = "/watcher/codes/course-1-user/assignment-1"
+    source = f"{root}/main.py"
+    old = FileSignature(mtime_ns=1, size=1, inode=1)
+    current = FileSignature(mtime_ns=2, size=2, inode=1)
+    marker = MutationMarker(
+        signature=FileSignature(mtime_ns=3, size=1, inode=2),
+        state="in_progress",
+    )
+
+    comparison = apply_system_mutation_baselines(
+        {source: old}, {source: current}, {}, {root: marker}
+    )
+
+    assert list(changed_events(comparison, {source: current})) == []
 
 
 def test_scan_detects_a_same_size_atomic_replacement(tmp_path: Path):

@@ -67,6 +67,7 @@ class Pipeline:
             process_type, homework_dir, source_file = self._label_process(
                 process.binary_path, process.args, process.cwd
             )
+            has_assignment_context = student_info.assignment_id is not None
 
             # 컴파일/실행 프로세스면 호스트 활동 기록
             if process_type and process_type.is_active_work:
@@ -94,7 +95,12 @@ class Pipeline:
                 return None
 
             # 필터링 3: 과제 디렉터리 외부
-            if process_type.requires_target_file and source_file and (not homework_dir):
+            if (
+                process_type.requires_target_file
+                and source_file
+                and not homework_dir
+                and not has_assignment_context
+            ):
                 self.logger.info(
                     "이벤트 필터링: 과제 디렉터리 외부 파일 컴파일/실행",
                     process_type=str(process_type),
@@ -107,7 +113,11 @@ class Pipeline:
                 return None
 
             # 필터링 4: 타깃 파일 불필요(유저바이너리) + 과제 디렉토리 미매칭
-            if process_type.is_user_binary and not homework_dir:
+            if (
+                process_type.is_user_binary
+                and not homework_dir
+                and not has_assignment_context
+            ):
                 self.logger.info(
                     "이벤트 필터링: 과제 디렉터리 외 프로세스",
                     process_type=str(process_type),
@@ -121,6 +131,11 @@ class Pipeline:
             absolute_source_file = self._get_absolute_source_file(
                 source_file, process.cwd
             )
+            if student_info.assignment_id is not None:
+                assignment_id = student_info.assignment_id
+                homework_dir = f"assignment-{assignment_id}"
+            else:
+                assignment_id = self.path_parser.assignment_id(homework_dir)
 
             # 이벤트 반환
             event = Event(
@@ -128,7 +143,7 @@ class Pipeline:
                 homework_dir=homework_dir,
                 student_id=student_info.student_id,
                 class_div=student_info.class_div,
-                assignment_id=self.path_parser.assignment_id(homework_dir),
+                assignment_id=assignment_id,
                 timestamp=current_timestamp,
                 source_file=absolute_source_file,
                 exit_code=process.exit_code,

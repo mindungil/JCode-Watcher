@@ -1,5 +1,7 @@
 import os
+import json
 import re
+import time
 from pathlib import Path
 from app.config.settings import settings
 from app.utils.logger import get_logger
@@ -42,6 +44,33 @@ class PathFilter:
         # 2. 경로 구조가 유효한지 확인
         return self._is_valid_source_path(file_path)
 
+    def is_system_mutation_event(self, file_path: str) -> bool:
+        try:
+            path = Path(file_path)
+            relative = path.relative_to(self.watch_root)
+            if len(relative.parts) < 2:
+                return False
+            workspace_key = relative.parts[1]
+            marker = (
+                self.watch_root
+                / ".jcode-system-mutations"
+                / relative.parts[0]
+                / f"{workspace_key}.json"
+            )
+            if not marker.is_file():
+                return False
+            payload = json.loads(marker.read_text(encoding="utf-8"))
+            if payload.get("state") == "in_progress":
+                return True
+            if not path.exists():
+                updated_at_ns = int(payload.get("updatedAtNs") or marker.stat().st_mtime_ns)
+                return time.time_ns() - updated_at_ns <= int(
+                    settings.SYSTEM_MUTATION_GRACE_SECONDS * 1_000_000_000
+                )
+            return path.stat().st_mtime_ns <= marker.stat().st_mtime_ns
+        except (OSError, ValueError, json.JSONDecodeError):
+            return False
+
     def _is_ignored(self, path_str: str) -> bool:
         """무시 패턴에 해당하는지 확인"""
         for pattern in self.IGNORE_PATTERNS:
@@ -57,10 +86,9 @@ class PathFilter:
             
             parts = relative_path.parts
             
-            # 경로 깊이 검사
-            # 최소: class/hw/file.txt (3개 파트)
-            # 최대: class/hw/d1/d2/d3/file.txt (6개 파트)
-            if not (3 <= len(parts) <= 6):
+            # workspace/assignment 아래의 소스 트리는 의존성 디렉토리를 제외하되,
+            # 일반적인 다중 모듈 프로젝트를 수용할 수 있는 깊이까지 추적한다.
+            if not (3 <= len(parts) <= 3 + settings.SOURCE_MAX_NESTING):
                 return False
 
             # 1. 과목-분반-학번 폴더 검사 (예: os-1-202012345)

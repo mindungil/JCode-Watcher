@@ -28,10 +28,16 @@ class StudentParser:
             return None
 
         try:
-            subject, class_num, student_id = match.groups()
+            subject, class_num, student_id, suffix = match.groups()
             class_div = f"{subject}-{class_num}"
+            assignment_match = re.fullmatch(r"a?([1-9][0-9]*)", suffix or "")
+            assignment_id = int(assignment_match.group(1)) if assignment_match else None
 
-            return StudentInfo(student_id=student_id, class_div=class_div)
+            return StudentInfo(
+                student_id=student_id,
+                class_div=class_div,
+                assignment_id=assignment_id,
+            )
         except ValueError as e:
             self.logger.error("StudentInfo 생성 실패", exc_info=True)
             return None

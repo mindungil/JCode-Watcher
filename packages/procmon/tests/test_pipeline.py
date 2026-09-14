@@ -342,6 +342,28 @@ class TestPipelineIntegration(TestPipeline):
         assert event.binary_path == "/usr/bin/x86_64-linux-gnu-gcc-11"
 
     @pytest.mark.asyncio
+    async def test_assignment_scoped_workspace_uses_hostname_assignment_identity(self):
+        struct = self.create_mock_process_struct(
+            hostname="jcode-os-1-202012180-42",
+            cwd="/home/coder/project",
+        )
+        self.mock_student_parser.parse_from_process.return_value = StudentInfo(
+            student_id="202012180",
+            class_div="os-1",
+            assignment_id=42,
+        )
+        self.mock_classifier.classify.return_value = ProcessType.GCC
+        self.mock_file_parser.parse.return_value = "main.c"
+        self.mock_path_parser.parse.return_value = "main.c"
+
+        event = await self.pipeline.pipeline(struct)
+
+        assert event is not None
+        assert event.assignment_id == 42
+        assert event.homework_dir == "assignment-42"
+        self.mock_path_parser.assignment_id.assert_not_called()
+
+    @pytest.mark.asyncio
     async def test_student_parsing_failure(self):
         """비학생 워크로드를 경고 없이 제외하는지 테스트"""
         # Given

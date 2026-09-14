@@ -5,10 +5,11 @@ Watcher의 신규 이벤트는 빈 PostgreSQL 데이터베이스에 저장합니
 ## 배포 순서
 
 1. `watcher-postgres-app` Secret의 `uri`에 CNPG가 제공하는 `postgresql://` 연결 문자열을 설정합니다. Backend와 Alembic이 이를 psycopg 드라이버 URL로 정규화합니다.
-2. 확인된 commit 이미지 digest를 `deploy/set-image-digests.py`로 dev overlay에 기록합니다.
-3. `deploy/deploy.sh dev`를 실행합니다. 이 스크립트는 Backend를 내리고 `alembic upgrade head` Job을 완료한 뒤 Backend와 수집기를 올립니다.
-4. Snapshot, Build, Run 등록·조회와 `/ready`, Pod 재시작 후 데이터 유지를 확인합니다.
-5. 같은 digest를 production overlay에 기록하고 `deploy/deploy.sh production`을 실행합니다.
+2. 각 환경 Namespace에 32자 이상의 서로 다른 무작위 토큰을 만듭니다. 수집용은 `watcher-collector-auth`, JCode Backend 조회용은 `watcher-query-auth` Secret의 `token` 키에 저장합니다. 수집기는 조회 토큰을 받지 않고 Watcher Backend는 두 토큰을 모두 받습니다.
+3. 확인된 commit 이미지 digest를 `deploy/set-image-digests.py`로 dev overlay에 기록합니다.
+4. `deploy/deploy.sh dev`를 실행합니다. 이 스크립트는 Backend를 내리고 `alembic upgrade head` Job을 완료한 뒤 Backend와 수집기를 올립니다.
+5. Snapshot, Build, Run 등록·조회와 `/ready`, Pod 재시작 후 데이터 유지를 확인합니다.
+6. 같은 digest를 production overlay에 기록하고 `deploy/deploy.sh production`을 실행합니다.
 
 Backend와 migration Job에는 SQLite PVC를 마운트하지 않습니다. PostgreSQL 연결 실패 시 `/ready`만 실패하며 `/health`는 프로세스 상태를 계속 반환합니다.
 
@@ -21,6 +22,8 @@ Filemon과 Procmon은 강의 Namespace의 `jcode.io/course-id` annotation을 읽
 Production Filemon snapshot 볼륨은 Longhorn `watcher-filemon-pvc`를 사용합니다. dev overlay는 같은 PVC 선언의 StorageClass와 크기만 `nfs-dev`, 5Gi로 변경합니다.
 
 Production Filemon은 공유 NFS에서 원격 Pod의 쓰기가 inotify로 전달되지 않는 제약을 피하기 위해 단일 Deployment로 실행합니다. 전체 NFS를 순회하지 않고 V2 불변 경로인 `사용자 작업공간/assignment-<id>` 아래의 지원 소스 파일만 5초 간격으로 열어 NFS 속성 캐시를 갱신한 뒤 비교합니다. 최초 스캔은 기준 상태만 만들며 이후 생성·수정·삭제부터 수집합니다.
+
+Generator가 수행하는 스타터 배포·과제 이관·복원·보관·회원 탈퇴는 Workspace 루트의 `.jcode-system-mutations` marker로 구분합니다. Filemon은 진행 중 marker와 완료 직후 30초 이내의 파일 삭제를 시스템 기준선 변경으로 처리하며 학생 활동으로 저장하지 않습니다.
 
 `deploy/deploy.sh`는 과거 Filemon DaemonSet을 제거한 뒤 단일 Deployment를 적용합니다. 여러 Filemon 인스턴스를 동시에 실행하면 같은 NFS 이벤트를 중복 저장할 수 있으므로 replica 수는 1이고 교체 방식은 `Recreate`입니다.
 

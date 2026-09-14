@@ -25,6 +25,7 @@ def mock_path_filter():
     mock = Mock()
     mock.should_process.return_value = True
     mock.is_directory.return_value = False  # 파일로 간주하여 should_process까지 도달하게 함
+    mock.is_system_mutation_event.return_value = False
     return mock
 
 

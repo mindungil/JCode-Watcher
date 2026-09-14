@@ -2,6 +2,7 @@ import pytest
 from pathlib import Path
 from unittest.mock import Mock, patch, AsyncMock
 from datetime import datetime
+from uuid import UUID
 
 from app.snapshot import SnapshotManager
 from app.models.source_file_info import SourceFileInfo
@@ -23,6 +24,7 @@ def mock_source_info():
     mock.filename = 'test.c'
     mock.target_file_path = Path('/watch/root/os-1-202012345/hw1/test.c')
     mock.timestamp = '20240830_123456'
+    mock.event_id = UUID('12345678-1234-5678-1234-567812345678')
     return mock
 
 
@@ -36,6 +38,7 @@ def mock_nested_source_info():
     mock.filename = 'src@main@Main.java'
     mock.target_file_path = Path('/watch/root/java-2-202098765/hw2/src/main/Main.java')
     mock.timestamp = '20240830_123456'
+    mock.event_id = UUID('12345678-1234-5678-1234-567812345678')
     return mock
 
 
@@ -44,17 +47,14 @@ class TestSnapshotManager:
 
     @patch('pathlib.Path.mkdir')
     @patch('app.snapshot.aiofiles.open')
-    @patch('app.snapshot.datetime')
     @patch('app.snapshot.settings')
     @pytest.mark.asyncio
-    async def test_create_snapshot_with_data_success(self, mock_settings, mock_datetime, 
+    async def test_create_snapshot_with_data_success(self, mock_settings,
                                                     mock_aiofiles_open, mock_mkdir,
                                                     snapshot_manager, mock_source_info):
         """데이터로 스냅샷 생성 성공"""
         # Given
         mock_settings.SNAPSHOT_BASE = Path('/snapshots')
-        mock_datetime.now.return_value.strftime.return_value = '20240830_123456'
-        
         mock_file = AsyncMock()
         mock_aiofiles_open.return_value.__aenter__.return_value = mock_file
         
@@ -65,23 +65,20 @@ class TestSnapshotManager:
         
         # Then
         mock_mkdir.assert_called_once_with(parents=True, exist_ok=True)
-        expected_path = Path('/snapshots/os-1/hw1/202012345/test.c/20240830_123456.c')
+        expected_path = Path('/snapshots/os-1/hw1/202012345/test.c/20240830_123456_12345678123456781234567812345678.c')
         mock_aiofiles_open.assert_called_once_with(expected_path, 'wb')
         mock_file.write.assert_called_once_with(test_data)
 
     @patch('pathlib.Path.mkdir')
     @patch('app.snapshot.aiofiles.open')
-    @patch('app.snapshot.datetime')
     @patch('app.snapshot.settings')
     @pytest.mark.asyncio
-    async def test_create_snapshot_with_nested_path(self, mock_settings, mock_datetime,
+    async def test_create_snapshot_with_nested_path(self, mock_settings,
                                                    mock_aiofiles_open, mock_mkdir,
                                                    snapshot_manager, mock_nested_source_info):
         """중첩 경로에서 스냅샷 생성"""
         # Given
         mock_settings.SNAPSHOT_BASE = Path('/snapshots')
-        mock_datetime.now.return_value.strftime.return_value = '20240830_123456'
-        
         mock_file = AsyncMock()
         mock_aiofiles_open.return_value.__aenter__.return_value = mock_file
         
@@ -92,23 +89,20 @@ class TestSnapshotManager:
         
         # Then
         mock_mkdir.assert_called_once_with(parents=True, exist_ok=True)
-        expected_path = Path('/snapshots/java-2/hw2/202098765/src@main@Main.java/20240830_123456.java')
+        expected_path = Path('/snapshots/java-2/hw2/202098765/src@main@Main.java/20240830_123456_12345678123456781234567812345678.java')
         mock_aiofiles_open.assert_called_once_with(expected_path, 'wb')
         mock_file.write.assert_called_once_with(test_data)
 
     @patch('pathlib.Path.mkdir')
     @patch('app.snapshot.aiofiles.open')
-    @patch('app.snapshot.datetime')
     @patch('app.snapshot.settings')
     @pytest.mark.asyncio
     async def test_create_empty_snapshot_with_info_success(self, mock_settings, 
-                                                          mock_datetime, mock_aiofiles_open, mock_mkdir,
+                                                          mock_aiofiles_open, mock_mkdir,
                                                           snapshot_manager, mock_source_info):
         """빈 스냅샷 생성 성공""" 
         # Given
         mock_settings.SNAPSHOT_BASE = Path('/snapshots')
-        mock_datetime.now.return_value.strftime.return_value = '20240830_123456'
-        
         mock_file = AsyncMock()
         mock_aiofiles_open.return_value.__aenter__.return_value = mock_file
         
@@ -117,7 +111,7 @@ class TestSnapshotManager:
         
         # Then
         mock_mkdir.assert_called_once_with(parents=True, exist_ok=True)
-        expected_path = Path('/snapshots/os-1/hw1/202012345/test.c/20240830_123456.c')
+        expected_path = Path('/snapshots/os-1/hw1/202012345/test.c/20240830_123456_12345678123456781234567812345678.c')
         mock_aiofiles_open.assert_called_once_with(expected_path, 'wb')
         mock_file.write.assert_not_called()  # 빈 파일이므로 write 호출 없음
 

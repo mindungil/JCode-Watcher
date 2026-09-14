@@ -14,15 +14,14 @@ class TestPathParser:
     def test_valid_workspace_paths(self):
         """유효한 workspace 경로 테스트"""
         test_cases = [
-            ("/workspace/os-1-202012345/hw1/main.c", "hw1"),
-            ("/workspace/a-2-123456789/정렬-알고리즘/test.py", "정렬-알고리즘"),
-            ("/workspace/linux-10-987654321/sorting-algorithm", "sorting-algorithm"),
-            ("/workspace/sys-5-111222333/과제1/project", "과제1"),
+            ("/workspace/os-1-202012345/assignment-1/main.c", "assignment-1"),
+            ("/workspace/a-2-123456789/assignment-2/test.py", "assignment-2"),
+            ("/workspace/linux-10-987654321/assignment-3", "assignment-3"),
+            ("/workspace/sys-5-111222333/assignment-4/project", "assignment-4"),
             (
-                "/workspace/net-1-555666777/hw3-linked-list/src/main.c",
-                "hw3-linked-list",
+                "/workspace/net-1-555666777/assignment-5/src/main.c",
+                "assignment-5",
             ),
-            ("/workspace/os-1-202012345/연결 리스트/main.c", "연결 리스트"),
         ]
 
         for path, expected in test_cases:
@@ -34,10 +33,11 @@ class TestPathParser:
     def test_valid_home_coder_paths(self):
         """유효한 /home/coder/project 경로 테스트"""
         test_cases = [
-            ("/home/coder/project/hw1/main.c", "hw1"),
-            ("/home/coder/project/정렬알고리즘/test.py", "정렬알고리즘"),
-            ("/home/coder/project/sorting-algorithm", "sorting-algorithm"),
-            ("/home/coder/project/과제15/subfolder/file.c", "과제15"),
+            ("/home/coder/project/assignment-1/main.c", "assignment-1"),
+            (
+                "/home/coder/project/assignments/assignment-42/src/main.c",
+                "assignment-42",
+            ),
         ]
 
         for path, expected in test_cases:
@@ -62,9 +62,9 @@ class TestPathParser:
 
     def test_pathlib_path_input(self):
         """pathlib.Path 객체 입력 테스트"""
-        path_obj = Path("/workspace/os-1-123456/과제5/main.c")
+        path_obj = Path("/workspace/os-1-123456/assignment-5/main.c")
         result = self.parser.parse(path_obj)
-        assert result == "과제5"
+        assert result == "assignment-5"
 
     def test_none_input_raises_exception(self):
         """None 입력 시 예외 발생 테스트"""
@@ -99,28 +99,25 @@ class TestPathParser:
     def test_path_normalization(self):
         """경로 정규화 테스트"""
         normalized_cases = [
-            ("/workspace/os-1-123//hw1//main.c", "hw1"),
-            ("/workspace/os-1-123/./hw2/main.c", "hw2"),
-            ("/workspace/os-1-123/subdir/../과제3/main.c", "과제3"),
+            ("/workspace/os-1-123//assignment-1//main.c", "assignment-1"),
+            ("/workspace/os-1-123/./assignment-2/main.c", "assignment-2"),
+            ("/workspace/os-1-123/subdir/../assignment-3/main.c", "assignment-3"),
         ]
 
         for path, expected in normalized_cases:
             result = self.parser.parse(path)
             assert result == expected, f"Failed to handle normalized path '{path}'"
 
-    def test_various_directory_names(self):
-        """다양한 과제 디렉토리명 테스트"""
-        test_cases = [
-            ("/workspace/os-1-123/hw1", "hw1"),
-            ("/workspace/os-1-123/과제2/", "과제2"),
-            ("/workspace/os-1-123/sorting-algorithm/main.c", "sorting-algorithm"),
-            ("/workspace/os-1-123/이진-트리/test.py", "이진-트리"),
-            ("/workspace/os-1-123/hw5-linked-list/app.js", "hw5-linked-list"),
+    def test_mutable_or_prefixed_assignment_names_are_rejected(self):
+        invalid_paths = [
+            "/workspace/os-1-123/hw1/main.c",
+            "/workspace/os-1-123/과제2/main.py",
+            "/workspace/os-1-123/assignment-2-invalid/main.c",
+            "/home/coder/project/assignments/assignment-42-copy/main.c",
         ]
 
-        for path, expected in test_cases:
-            result = self.parser.parse(path)
-            assert result == expected, f"Failed to parse '{path}'"
+        for path in invalid_paths:
+            assert self.parser.parse(path) is None
 
     def test_hidden_directory_rejected(self):
         """숨김 디렉토리가 거부되는지 테스트"""
@@ -136,9 +133,9 @@ class TestPathParser:
     def test_alphanumeric_subject_codes(self):
         """영숫자 조합 과목코드 테스트"""
         test_cases = [
-            ("/workspace/test252-2-202012180/과제1/hihihi.c", "과제1"),
-            ("/workspace/cs101-1-202012345/hw2/main.c", "hw2"),
-            ("/workspace/OS2023-1-202011111/정렬/kernel.c", "정렬"),
+            ("/workspace/test252-2-202012180/assignment-1/hihihi.c", "assignment-1"),
+            ("/workspace/cs101-1-202012345/assignment-2/main.c", "assignment-2"),
+            ("/workspace/OS2023-1-202011111/assignment-3/kernel.c", "assignment-3"),
         ]
 
         for path, expected in test_cases:

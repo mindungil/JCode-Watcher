@@ -26,6 +26,9 @@ class WatchdogHandler(FileSystemEventHandler):
             if not self.path_filter.should_process(event.src_path):
                 logger.info("필터로 인해 수정 이벤트 무시", src_path=event.src_path)
                 return
+            if self.path_filter.is_system_mutation_event(event.src_path):
+                logger.info("시스템 기준선 변경으로 수정 이벤트 무시", src_path=event.src_path)
+                return
             
             logger.debug("수정 이벤트 큐에 추가", src_path=event.src_path)
             record_raw_event(event.event_type)
@@ -42,6 +45,9 @@ class WatchdogHandler(FileSystemEventHandler):
         try:
             if not self.path_filter.should_process(event.src_path):
                 logger.info("필터로 인해 삭제 이벤트 무시", src_path=event.src_path)
+                return
+            if self.path_filter.is_system_mutation_event(event.src_path):
+                logger.info("시스템 기준선 변경으로 삭제 이벤트 무시", src_path=event.src_path)
                 return
             
             record_raw_event(event.event_type)
@@ -60,8 +66,9 @@ class WatchdogHandler(FileSystemEventHandler):
             dest_path = getattr(event, 'dest_path', '')
             
             # src_path 처리 - 삭제 이벤트 생성
-            if (not self.path_filter.is_directory(src_path) and 
-                self.path_filter.should_process(src_path)):
+            if (not self.path_filter.is_directory(src_path) and
+                self.path_filter.should_process(src_path) and
+                not self.path_filter.is_system_mutation_event(src_path)):
                 
                 delete_event = FileDeletedEvent(src_path)
                 record_raw_event(delete_event.event_type)
@@ -73,7 +80,8 @@ class WatchdogHandler(FileSystemEventHandler):
             # dest_path 처리 - 수정 이벤트 생성
             if (dest_path and 
                 not self.path_filter.is_directory(dest_path) and 
-                self.path_filter.should_process(dest_path)):
+                self.path_filter.should_process(dest_path) and
+                not self.path_filter.is_system_mutation_event(dest_path)):
                 
                 modify_event = FileModifiedEvent(dest_path)
                 record_raw_event(modify_event.event_type)

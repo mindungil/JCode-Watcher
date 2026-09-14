@@ -8,6 +8,7 @@ from typing import Iterator
 
 from watchdog.events import FileDeletedEvent, FileModifiedEvent, FileSystemEvent
 
+from app.config.settings import settings
 from app.source_path_filter import PathFilter
 from app.utils.logger import get_logger
 
@@ -31,6 +32,12 @@ class FileSignature:
     mtime_ns: int
     size: int
     inode: int
+
+
+@dataclass(frozen=True)
+class MutationMarker:
+    signature: FileSignature
+    state: str
 
 
 def _is_pruned_directory(name: str) -> bool:
@@ -68,11 +75,12 @@ def scan_source_files(
             assignment_directory, followlinks=False
         ):
             directory_path = Path(directory)
-            relative_depth = len(directory_path.relative_to(watch_root).parts)
+            relative_depth = len(directory_path.relative_to(assignment_directory).parts)
             directory_names[:] = [
                 name
                 for name in directory_names
-                if relative_depth < 5 and not _is_pruned_directory(name)
+                if relative_depth < settings.SOURCE_MAX_NESTING
+                and not _is_pruned_directory(name)
             ]
             for file_name in file_names:
                 path = directory_path / file_name
@@ -97,6 +105,70 @@ def scan_source_files(
                     inode=stat.st_ino,
                 )
     return result
+
+
+def scan_mutation_markers(watch_root: Path) -> dict[str, MutationMarker]:
+    markers: dict[str, MutationMarker] = {}
+    marker_root = watch_root / ".jcode-system-mutations"
+    if not marker_root.is_dir() or marker_root.is_symlink():
+        return markers
+    for marker in marker_root.glob("*/*.json"):
+        workspace_name = marker.parent.name
+        workspace_key = marker.stem
+        if not re.fullmatch(r"assignment-[1-9][0-9]*", workspace_key):
+            continue
+        assignment_directory = watch_root / workspace_name / workspace_key
+        try:
+            stat = marker.stat()
+            import json
+
+            state = str(json.loads(marker.read_text(encoding="utf-8")).get("state") or "unknown")
+        except (FileNotFoundError, PermissionError, OSError, ValueError):
+            continue
+        markers[str(assignment_directory)] = MutationMarker(
+            signature=FileSignature(stat.st_mtime_ns, stat.st_size, stat.st_ino),
+            state=state,
+        )
+    return markers
+
+
+def apply_system_mutation_baselines(
+    previous: dict[str, FileSignature],
+    current: dict[str, FileSignature],
+    previous_markers: dict[str, MutationMarker],
+    current_markers: dict[str, MutationMarker],
+) -> dict[str, FileSignature]:
+    comparison = dict(previous)
+    for root, marker in current_markers.items():
+        marker_changed = previous_markers.get(root) != marker
+        if marker.state != "in_progress" and not marker_changed:
+            continue
+        prefix = f"{root}{os.sep}"
+        if marker.state == "in_progress":
+            for path in [value for value in comparison if value.startswith(prefix)]:
+                comparison.pop(path, None)
+            comparison.update(
+                {path: value for path, value in current.items() if path.startswith(prefix)}
+            )
+            continue
+
+        # A completed/failed marker is written after Generator file mutations.
+        # Baseline only files no newer than that marker so an immediate student edit survives.
+        for path in [
+            value
+            for value in comparison
+            if value.startswith(prefix) and value not in current
+        ]:
+            comparison.pop(path, None)
+        comparison.update(
+            {
+                path: value
+                for path, value in current.items()
+                if path.startswith(prefix)
+                and value.mtime_ns <= marker.signature.mtime_ns
+            }
+        )
+    return comparison
 
 
 def changed_events(
@@ -156,6 +228,7 @@ class SelectivePollingObserver:
     def _run(self) -> None:
         try:
             previous = scan_source_files(self.watch_root, self.path_filter)
+            previous_markers = scan_mutation_markers(self.watch_root)
         except Exception as error:
             self._startup_error = error
             self._baseline_ready.set()
@@ -175,6 +248,7 @@ class SelectivePollingObserver:
         while not self._stop_event.wait(self.interval_seconds):
             try:
                 current = scan_source_files(self.watch_root, self.path_filter)
+                current_markers = scan_mutation_markers(self.watch_root)
             except Exception:
                 logger.critical(
                     "NFS 선택적 폴링 스캔 실패",
@@ -182,9 +256,16 @@ class SelectivePollingObserver:
                     exc_info=True,
                 )
                 return
-            for event in changed_events(previous, current):
+            comparison = apply_system_mutation_baselines(
+                previous,
+                current,
+                previous_markers,
+                current_markers,
+            )
+            for event in changed_events(comparison, current):
                 if event.event_type == "deleted":
                     self.handler.on_deleted(event)
                 else:
                     self.handler.on_modified(event)
             previous = current
+            previous_markers = current_markers

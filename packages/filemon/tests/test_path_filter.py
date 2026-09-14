@@ -11,6 +11,7 @@ def path_filter(mocker):
     """테스트를 위한 PathFilter 인스턴스를 생성하는 Fixture"""
     mock_settings = MagicMock()
     mock_settings.WATCH_ROOT = Path("/watcher/codes")
+    mock_settings.SOURCE_MAX_NESTING = 12
     mocker.patch('app.source_path_filter.settings', mock_settings)
     return PathFilter()
 
@@ -20,11 +21,11 @@ path_test_cases = [
     # === 유효한 V2 불변 과제 경로 ===
     ("기본 유효 경로", "/watcher/codes/class-1-202012345/assignment-1/test.c", True),
     ("깊은 하위 디렉토리", "/watcher/codes/ds-4-202312345/assignment-10/src/main.hpp", True),
-    ("최대 허용 깊이", "/watcher/codes/ds-4-202312345/assignment-10/a/b/c/main.hpp", True),
+    ("다중 모듈 하위 디렉토리", "/watcher/codes/ds-4-202312345/assignment-10/a/b/c/d/e/f/main.hpp", True),
 
     # === 무효한 경로 ===
     # 깊이 초과
-    ("허용 깊이 초과", "/watcher/codes/ds-4-202312345/assignment-1/a/b/c/d/main.hpp", False),
+    ("허용 깊이 초과", "/watcher/codes/ds-4-202312345/assignment-1/a/b/c/d/e/f/g/h/i/j/k/l/m/main.hpp", False),
     # 무시 패턴
     ("lib 디렉토리", "/watcher/codes/algo-3-202212345/assignment-1/lib/util.cpp", False),
     ("node_modules 디렉토리", "/watcher/codes/class-1-202012345/assignment-1/node_modules/test.py", False),
@@ -56,3 +57,16 @@ def test_should_process_processes_files(path_filter, mocker):
     """should_process가 파일 경로를 올바르게 처리하는지 테스트"""
     test_path = "/watcher/codes/class-1-202012345/assignment-1/test.c"
     assert path_filter.should_process(test_path) is True
+
+
+def test_system_mutation_marker_suppresses_generated_file(path_filter, mocker, tmp_path):
+    watch_root = tmp_path / "codes"
+    source = watch_root / "class-1-202012345" / "assignment-1" / "main.py"
+    source.parent.mkdir(parents=True)
+    source.write_text("starter", encoding="utf-8")
+    marker = watch_root / ".jcode-system-mutations" / source.parents[1].name / "assignment-1.json"
+    marker.parent.mkdir(parents=True)
+    marker.write_text('{"state":"in_progress","updatedAtNs":1}', encoding="utf-8")
+    path_filter.watch_root = watch_root
+
+    assert path_filter.is_system_mutation_event(str(source)) is True

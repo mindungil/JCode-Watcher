@@ -1,6 +1,5 @@
 import aiofiles
 from pathlib import Path
-from datetime import datetime
 from app.models.source_file_info import SourceFileInfo
 from app.config.settings import settings
 from app.utils.logger import get_logger
@@ -16,8 +15,7 @@ class SnapshotManager:
 
     async def create_snapshot_with_data(self, path_info: SourceFileInfo, data: bytes):
         """읽은 데이터로 스냅샷 파일 생성"""
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        snapshot_path = self._get_snapshot_path(path_info, timestamp)
+        snapshot_path = self._get_snapshot_path(path_info)
         
         # 디렉토리 생성
         snapshot_path.parent.mkdir(parents=True, exist_ok=True)
@@ -38,8 +36,7 @@ class SnapshotManager:
     async def create_empty_snapshot_with_info(self, path_info: SourceFileInfo):
         """빈 스냅샷 생성 (삭제 이벤트용) - 파싱된 정보 사용"""
         try:
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            snapshot_path = self._get_snapshot_path(path_info, timestamp)
+            snapshot_path = self._get_snapshot_path(path_info)
             snapshot_path.parent.mkdir(parents=True, exist_ok=True)
             
             # 빈 파일 생성
@@ -54,7 +51,7 @@ class SnapshotManager:
                         exc_info=True)
             raise
 
-    def _get_snapshot_path(self, path_info: SourceFileInfo, timestamp: str) -> Path:
+    def _get_snapshot_path(self, path_info: SourceFileInfo, timestamp: str | None = None) -> Path:
         """스냅샷 파일 경로 생성"""
         snapshot_dir = (settings.SNAPSHOT_BASE / 
                        path_info.class_div / 
@@ -66,7 +63,9 @@ class SnapshotManager:
         if nested_path:
             snapshot_dir = snapshot_dir / nested_path
             
-        return snapshot_dir / f"{timestamp}{path_info.target_file_path.suffix}"
+        event_timestamp = timestamp or path_info.timestamp
+        event_suffix = "" if timestamp is not None else f"_{path_info.event_id.hex}"
+        return snapshot_dir / f"{event_timestamp}{event_suffix}{path_info.target_file_path.suffix}"
 
     def _get_nested_path(self, path_info: SourceFileInfo) -> str:
         """과제 디렉토리 이후의 경로를 @로 결합하여 반환"""

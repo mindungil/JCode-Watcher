@@ -8,12 +8,7 @@ from app.utils.patterns import WORKSPACE_PATH_REGEX
 
 
 class PathParser:
-    """경로에서 과제 디렉토리명을 파싱하는 도구
-
-    - 유효한 과제 경로면 디렉토리명 반환 (예: "정렬-알고리즘", "hw1" 등)
-    - 과제 디렉토리가 아니면 None 반환
-    - 비정상 입력은 예외 발생
-    """
+    """V2의 불변 assignment 경로에서 과제 디렉터리를 파싱한다."""
 
     def __init__(self):
         self.logger = get_logger("path_parser")
@@ -23,7 +18,7 @@ class PathParser:
         Args:
             path: 절대 경로 (예: /workspace/os-1-202012345/정렬-알고리즘/main.c)
         Returns:
-            과제 디렉토리명 (예: "정렬-알고리즘") 또는 None
+            과제 디렉터리명 (예: "assignment-42") 또는 None
         """
         if path is None:
             raise ValueError("경로가 None입니다")
