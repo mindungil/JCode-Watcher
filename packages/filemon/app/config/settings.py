@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     MAX_CAPTURABLE_FILE_SIZE: int = 64 * 1024  # 64KB - 저장할 수 있는 최대 파일 크기
     HW_MAX_COUNT: int = 15  # hw 디렉토리 최대 번호
     API_SERVER: str = "http://localhost:8080"  # API 서버 주소
+    COLLECTOR_TOKEN: str = Field(min_length=32)
     API_TIMEOUT_TOTAL: int = 20
     SPOOL_PATH: str = "/opt/filemon/logs/event-spool.db"
     SPOOL_BATCH_SIZE: int = 100
@@ -20,6 +21,8 @@ class Settings(BaseSettings):
     COURSE_ID_CACHE_SECONDS: int = 300
     FILE_WATCH_MODE: Literal["native", "polling"] = "native"
     FILE_POLL_INTERVAL_SECONDS: float = Field(default=5.0, gt=0)
+    SOURCE_MAX_NESTING: int = Field(default=12, ge=1, le=64)
+    SYSTEM_MUTATION_GRACE_SECONDS: float = Field(default=30.0, ge=0)
     KUBERNETES_API_URL: str = ""
     KUBERNETES_SERVICE_HOST: str = "kubernetes.default.svc"
     KUBERNETES_SERVICE_PORT_HTTPS: int = 443

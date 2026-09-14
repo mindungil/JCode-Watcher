@@ -1,4 +1,5 @@
 from crud.dashboard import get_dashboard_summaries_by_assignment
+from auth import require_collector_token, require_query_token
 from crud.event import insert_event_batch
 from db.connection import get_session
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -34,7 +35,9 @@ def event_page_statement(model, assignment_id: int, student_key: str, cursor=Non
 
 
 @router.post(
-    "/assignments/{assignment_id}/dashboard", response_model=DashboardV2Response
+    "/assignments/{assignment_id}/dashboard",
+    response_model=DashboardV2Response,
+    dependencies=[Depends(require_query_token)],
 )
 def dashboard(
     assignment_id: int, request: DashboardV2Request, db: Session = Depends(get_session)
@@ -77,6 +80,7 @@ def _event_page(
 @router.get(
     "/assignments/{assignment_id}/students/{student_key}/snapshots",
     response_model=SnapshotPage,
+    dependencies=[Depends(require_query_token)],
 )
 def snapshots(
     assignment_id: int,
@@ -106,6 +110,7 @@ def snapshots(
 @router.get(
     "/assignments/{assignment_id}/students/{student_key}/build",
     response_model=EventPage,
+    dependencies=[Depends(require_query_token)],
 )
 def build_events(
     assignment_id: int,
@@ -118,7 +123,9 @@ def build_events(
 
 
 @router.get(
-    "/assignments/{assignment_id}/students/{student_key}/run", response_model=EventPage
+    "/assignments/{assignment_id}/students/{student_key}/run",
+    response_model=EventPage,
+    dependencies=[Depends(require_query_token)],
 )
 def run_events(
     assignment_id: int,
@@ -130,7 +137,11 @@ def run_events(
     return _event_page(db, RunLog, assignment_id, student_key, limit, cursor)
 
 
-@router.post("/events/batch", response_model=EventBatchResponse)
+@router.post(
+    "/events/batch",
+    response_model=EventBatchResponse,
+    dependencies=[Depends(require_collector_token)],
+)
 def register_event_batch(
     request: EventBatchRequest, db: Session = Depends(get_session)
 ):

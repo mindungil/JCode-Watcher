@@ -23,6 +23,16 @@ spec:
                 secretKeyRef:
                   name: watcher-postgres-app
                   key: uri
+            - name: COLLECTOR_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: watcher-collector-auth
+                  key: token
+            - name: QUERY_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: watcher-query-auth
+                  key: token
       containers:
         - name: watcher-backend
           image: harbor.jedutools.io/jdevops/watcher-backend:REPLACE_WITH_COMMIT_SHA
@@ -35,6 +45,16 @@ spec:
                   key: uri
             - name: AUTO_CREATE_SCHEMA
               value: "false"
+            - name: COLLECTOR_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: watcher-collector-auth
+                  key: token
+            - name: QUERY_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: watcher-query-auth
+                  key: token
             - name: DB_POOL_SIZE
               value: "5"
             - name: DB_MAX_OVERFLOW

@@ -1,10 +1,11 @@
+from auth import require_query_token
 from fastapi import APIRouter, Depends
 from sqlmodel import Session
 from services.selection import fetch_student_hw_files, fetch_student_hw_timestamps
 from typing import List
 from db.connection import get_session
 
-router = APIRouter(tags=["Selection"])
+router = APIRouter(tags=["Selection"], dependencies=[Depends(require_query_token)])
 
 @router.get("/api/{class_div}/{hw_name}/{student_id}", response_model=List[str])
 def get_student_hw_files(class_div: str, student_id: int, hw_name: str, db: Session = Depends(get_session)):

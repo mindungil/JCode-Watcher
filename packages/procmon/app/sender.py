@@ -123,6 +123,7 @@ class EventSender:
                     session.post(
                         f"{self.base_url}/api/v2/events/batch",
                         json={"events": events},
+                        headers={"X-Watcher-Collector-Token": settings.COLLECTOR_TOKEN},
                         timeout=self.timeout,
                     ) as response,
                 ):

@@ -30,6 +30,11 @@ spec:
           value: "INFO"
         - name: API_SERVER
           value: "http://watcher-backend-service.watcher.svc.cluster.local:3000"  # settings.py와 일치
+        - name: COLLECTOR_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: watcher-collector-auth
+              key: token
         - name: JCODE_ENVIRONMENT
           value: "prod"
         - name: SPOOL_PATH

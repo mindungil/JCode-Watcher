@@ -57,6 +57,9 @@ async def test_snapshot_uses_batch_contract(event, tmp_path):
     url = session.post.call_args.args[0]
     item = session.post.call_args.kwargs["json"]["events"][0]
     assert url.endswith("/api/v2/events/batch")
+    assert session.post.call_args.kwargs["headers"] == {
+        "X-Watcher-Collector-Token": settings.COLLECTOR_TOKEN
+    }
     assert item["type"] == "snapshot"
     assert item["payload"] == {
         "event_id": str(event.event_id),

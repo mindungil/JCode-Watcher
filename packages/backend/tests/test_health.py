@@ -23,3 +23,13 @@ def test_database_driver_accepts_cnpg_uri_and_restricts_other_drivers():
     )
     with pytest.raises(RuntimeError, match="DB_URL"):
         build_engine("mysql+pymysql://watcher:watcher@localhost/watcher")
+
+
+def test_collector_endpoint_rejects_missing_credentials():
+    client = TestClient(main.app)
+    assert client.post("/api/v2/events/batch", json={"events": []}).status_code == 401
+
+
+def test_query_endpoint_rejects_missing_credentials():
+    client = TestClient(main.app)
+    assert client.get("/api/assignment/os-1/assignment-42").status_code == 401

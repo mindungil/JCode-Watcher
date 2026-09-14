@@ -16,6 +16,19 @@ if [[ "$db_url" != postgresql://* && "$db_url" != postgresql+psycopg://* ]]; the
   exit 1
 fi
 unset db_url
+kubectl get secret watcher-collector-auth -n "$namespace" >/dev/null
+collector_token=$(kubectl get secret watcher-collector-auth -n "$namespace" -o jsonpath='{.data.token}' | base64 --decode)
+if [[ ${#collector_token} -lt 32 ]]; then
+  echo "watcher-collector-auth Secret의 token은 32자 이상이어야 합니다." >&2
+  exit 1
+fi
+kubectl get secret watcher-query-auth -n "$namespace" >/dev/null
+query_token=$(kubectl get secret watcher-query-auth -n "$namespace" -o jsonpath='{.data.token}' | base64 --decode)
+if [[ ${#query_token} -lt 32 ]]; then
+  echo "watcher-query-auth Secret의 token은 32자 이상이어야 합니다." >&2
+  exit 1
+fi
+unset collector_token query_token
 if [[ "$target" == "dev" ]]; then
   for legacy in watcher-proc; do
     if kubectl get deployment "$legacy" -n "$namespace" >/dev/null 2>&1; then

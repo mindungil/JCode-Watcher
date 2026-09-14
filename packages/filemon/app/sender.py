@@ -87,7 +87,9 @@ class SnapshotSender:
                 async with (
                     aiohttp.ClientSession(timeout=self.timeout) as session,
                     session.post(
-                        f"{self.base_url}/api/v2/events/batch", json={"events": events}
+                        f"{self.base_url}/api/v2/events/batch",
+                        json={"events": events},
+                        headers={"X-Watcher-Collector-Token": settings.COLLECTOR_TOKEN},
                     ) as response,
                 ):
                     if response.status >= 400:

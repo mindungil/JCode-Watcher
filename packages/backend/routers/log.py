@@ -1,4 +1,5 @@
 from crud.log import build_register, run_register
+from auth import require_collector_token
 from db.connection import get_session
 from fastapi import APIRouter, Depends
 from schemas.event import EventInsertResponse
@@ -9,7 +10,11 @@ from utils.cache import invalidate_log_cache
 router = APIRouter(tags=["Log"])
 
 
-@router.post("/api/v2/events/build", response_model=EventInsertResponse)
+@router.post(
+    "/api/v2/events/build",
+    response_model=EventInsertResponse,
+    dependencies=[Depends(require_collector_token)],
+)
 def register_build_log(event: BuildLogCreate, db: Session = Depends(get_session)):
     inserted = build_register(db, event.model_dump())
     if inserted:
@@ -17,7 +22,11 @@ def register_build_log(event: BuildLogCreate, db: Session = Depends(get_session)
     return EventInsertResponse(inserted=inserted)
 
 
-@router.post("/api/v2/events/run", response_model=EventInsertResponse)
+@router.post(
+    "/api/v2/events/run",
+    response_model=EventInsertResponse,
+    dependencies=[Depends(require_collector_token)],
+)
 def register_run_log(event: RunLogCreate, db: Session = Depends(get_session)):
     inserted = run_register(db, event.model_dump())
     if inserted:

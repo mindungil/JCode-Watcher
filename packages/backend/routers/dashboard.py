@@ -1,3 +1,4 @@
+from auth import require_query_token
 from fastapi import APIRouter, Depends
 from sqlmodel import Session
 
@@ -6,7 +7,7 @@ from db.connection import get_session
 from schemas.student import DashboardStudentSummary, DashboardSummaryRequest, DashboardSummaryResponse
 
 
-router = APIRouter(tags=["Dashboard"])
+router = APIRouter(tags=["Dashboard"], dependencies=[Depends(require_query_token)])
 
 
 @router.post("/api/dashboard/{class_div}/{hw_name}/summary", response_model=DashboardSummaryResponse)

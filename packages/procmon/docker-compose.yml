@@ -19,3 +19,4 @@ services:
       - PYTHONUNBUFFERED=1
       - LOG_LEVEL=DEBUG
       - API_SERVER=http://localhost:8000
+      - COLLECTOR_TOKEN=development-collector-token-at-least-32-characters

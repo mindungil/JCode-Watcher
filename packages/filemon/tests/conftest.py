@@ -4,6 +4,8 @@ import pytest
 from pathlib import Path
 from unittest.mock import patch
 
+os.environ.setdefault("COLLECTOR_TOKEN", "test-collector-token-at-least-32-characters")
+
 # 프로젝트 루트와 app 디렉토리를 Python path에 추가
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 app_path = os.path.join(project_root, 'app')

@@ -26,3 +26,13 @@ spec:
                   key: uri
             - name: AUTO_CREATE_SCHEMA
               value: "false"
+            - name: COLLECTOR_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: watcher-collector-auth
+                  key: token
+            - name: QUERY_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: watcher-query-auth
+                  key: token

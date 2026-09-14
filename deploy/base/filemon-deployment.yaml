@@ -64,6 +64,11 @@ spec:
           value: "INFO"
         - name: API_SERVER
           value: "http://watcher-backend-service:3000"
+        - name: COLLECTOR_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: watcher-collector-auth
+              key: token
         - name: METRICS_PORT
           value: "3000"
         - name: JCODE_ENVIRONMENT
@@ -72,6 +77,10 @@ spec:
           value: "polling"
         - name: FILE_POLL_INTERVAL_SECONDS
           value: "5"
+        - name: SOURCE_MAX_NESTING
+          value: "12"
+        - name: SYSTEM_MUTATION_GRACE_SECONDS
+          value: "30"
         - name: SPOOL_PATH
           value: "/var/lib/jcode-watcher/spool/event-spool.db"
         - name: READINESS_PORT

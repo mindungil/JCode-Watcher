@@ -21,6 +21,10 @@ pytestmark = pytest.mark.skipif(
     engine.dialect.name != "postgresql", reason="PostgreSQL integration test"
 )
 NOW = datetime(2026, 8, 18, 12, tzinfo=timezone.utc)
+AUTH_HEADERS = {
+    "X-Watcher-Collector-Token": "test-collector-token-at-least-32-characters",
+    "X-Watcher-Query-Token": "test-query-token-at-least-32-characters",
+}
 
 
 def identity(event_id=None, student_key="202012345", occurred_at=NOW):
@@ -60,7 +64,7 @@ def clean_events():
 
 
 def test_three_event_types_and_duplicate_delivery():
-    client = TestClient(app)
+    client = TestClient(app, headers=AUTH_HEADERS)
     event_id = "00000000-0000-0000-0000-000000000042"
     common = {
         "event_id": event_id,
@@ -129,7 +133,7 @@ def test_three_event_types_and_duplicate_delivery():
 
 
 def test_batch_is_atomic_and_acknowledges_duplicates():
-    client = TestClient(app)
+    client = TestClient(app, headers=AUTH_HEADERS)
     first_id = "00000000-0000-0000-0000-000000000051"
     common = {
         "course_id": 7,
@@ -225,7 +229,7 @@ def test_bulk_dashboard_cursor_and_assignment_index():
             )
         session.commit()
 
-    client = TestClient(app)
+    client = TestClient(app, headers=AUTH_HEADERS)
     summary = client.post(
         "/api/v2/assignments/42/dashboard",
         json={"student_keys": ["202012345", "202012346"]},

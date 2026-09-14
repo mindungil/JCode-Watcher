@@ -9,6 +9,8 @@ ENV_PATH = DIR / ".env"
 
 class Settings(BaseSettings):
     DB_URL: str
+    COLLECTOR_TOKEN: str = Field(min_length=32)
+    QUERY_TOKEN: str = Field(min_length=32)
     AUTO_CREATE_SCHEMA: bool = False
     DB_POOL_SIZE: int = Field(default=5, ge=1, le=50)
     DB_MAX_OVERFLOW: int = Field(default=5, ge=0, le=50)

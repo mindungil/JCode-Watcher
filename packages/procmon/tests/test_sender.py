@@ -71,6 +71,9 @@ async def test_process_event_uses_batch_contract(
         assert await client.send_event(event) is True
 
     item = session.post.call_args.kwargs["json"]["events"][0]
+    assert session.post.call_args.kwargs["headers"] == {
+        "X-Watcher-Collector-Token": settings.COLLECTOR_TOKEN
+    }
     assert item["type"] == event_type
     assert item["payload"]["event_id"] == str(event.event_id)
     assert item["payload"]["course_id"] == 7

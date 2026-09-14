@@ -1,5 +1,6 @@
 from datetime import datetime
 
+from auth import require_query_token
 from db.connection import get_session
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from schemas.student import (
@@ -19,7 +20,7 @@ from services.student import (
 from sqlmodel import Session
 
 # 학생별
-router = APIRouter(tags=["Student"])
+router = APIRouter(tags=["Student"], dependencies=[Depends(require_query_token)])
 
 
 # 학생별, 코드별 평균 스냅샷 개수, 크기 계산

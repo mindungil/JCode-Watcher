@@ -1,5 +1,6 @@
 from datetime import datetime
 
+from auth import require_query_token
 from db.connection import get_session
 from fastapi import APIRouter, Depends
 from schemas.assignment import (
@@ -17,7 +18,7 @@ from services.assignment import (
 from sqlmodel import Session
 
 # 전체 학생 대상(한 과제 안에서)
-router = APIRouter(tags=["Assignment"])
+router = APIRouter(tags=["Assignment"], dependencies=[Depends(require_query_token)])
 
 
 # 전체 학생 대상 퍼센타일 계산

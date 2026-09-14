@@ -1,5 +1,6 @@
 from typing import Literal
 
+from pydantic import Field
 from pydantic_settings import BaseSettings
 
 
@@ -8,6 +9,7 @@ class Settings(BaseSettings):
 
     LOG_LEVEL: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
     API_SERVER: str = "http://localhost:8000"
+    COLLECTOR_TOKEN: str = Field(min_length=32)
     API_TIMEOUT_TOTAL: int = 20
     SPOOL_PATH: str = "/var/lib/jcode-watcher/spool/event-spool.db"
     SPOOL_BATCH_SIZE: int = 100

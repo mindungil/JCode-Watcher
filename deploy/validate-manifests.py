@@ -34,6 +34,10 @@ def validate_release(path: Path, environment: str) -> None:
     backend_container = backend["containers"][0]
     db = env(backend_container)["DB_URL"]["valueFrom"]["secretKeyRef"]
     assert db == {"name": "watcher-postgres-app", "key": "uri"}
+    collector_auth = env(backend_container)["COLLECTOR_TOKEN"]["valueFrom"]["secretKeyRef"]
+    assert collector_auth == {"name": "watcher-collector-auth", "key": "token"}
+    query_auth = env(backend_container)["QUERY_TOKEN"]["valueFrom"]["secretKeyRef"]
+    assert query_auth == {"name": "watcher-query-auth", "key": "token"}
     assert backend_container["readinessProbe"]["httpGet"]["path"] == "/ready"
     assert backend_container["livenessProbe"]["httpGet"]["path"] == "/health"
     assert all(
@@ -59,6 +63,10 @@ def validate_release(path: Path, environment: str) -> None:
         assert pod["serviceAccountName"] == "watcher-course-reader"
         container = pod["containers"][0]
         collector_env = env(container)
+        assert collector_env["COLLECTOR_TOKEN"]["valueFrom"]["secretKeyRef"] == {
+            "name": "watcher-collector-auth",
+            "key": "token",
+        }
         assert collector_env["JCODE_ENVIRONMENT"]["value"] == (
             "dev" if environment == "dev" else "prod"
         )
@@ -91,6 +99,8 @@ def validate_release(path: Path, environment: str) -> None:
     assert env(filemon_container)["LOG_BACKUP_COUNT"]["value"] == "5"
     assert env(filemon_container)["FILE_WATCH_MODE"]["value"] == "polling"
     assert env(filemon_container)["FILE_POLL_INTERVAL_SECONDS"]["value"] == "5"
+    assert env(filemon_container)["SOURCE_MAX_NESTING"]["value"] == "12"
+    assert env(filemon_container)["SYSTEM_MUTATION_GRACE_SECONDS"]["value"] == "30"
     if environment == "dev":
         assert filemon["spec"]["template"]["spec"]["nodeSelector"] == {
             "env": "dev"
@@ -150,6 +160,14 @@ def validate_migration(path: Path) -> None:
     assert env(container)["DB_URL"]["valueFrom"]["secretKeyRef"] == {
         "name": "watcher-postgres-app",
         "key": "uri",
+    }
+    assert env(container)["COLLECTOR_TOKEN"]["valueFrom"]["secretKeyRef"] == {
+        "name": "watcher-collector-auth",
+        "key": "token",
+    }
+    assert env(container)["QUERY_TOKEN"]["valueFrom"]["secretKeyRef"] == {
+        "name": "watcher-query-auth",
+        "key": "token",
     }
     assert not container.get("volumeMounts")
     assert not job.get("volumes")
