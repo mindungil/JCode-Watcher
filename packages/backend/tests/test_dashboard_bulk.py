@@ -80,3 +80,66 @@ def test_dashboard_aggregates_all_students_in_database():
     assert result[1]["run_count"] == 1
     assert result[1]["total_size_change"] == 140
     assert result[2]["build_count"] == 0
+
+
+def test_dashboard_summary_excludes_activity_after_until():
+    engine = create_engine(
+        "sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool
+    )
+    SQLModel.metadata.create_all(engine)
+    deadline = datetime(2026, 10, 2, 14, 59, tzinfo=timezone.utc)
+    with Session(engine) as session:
+        session.add_all(
+            [
+                Snapshot(
+                    **COMMON,
+                    event_id=uuid4(),
+                    occurred_at=deadline - timedelta(minutes=5),
+                    relative_path="main.py",
+                    file_size=100,
+                ),
+                RunLog(
+                    **COMMON,
+                    event_id=uuid4(),
+                    occurred_at=deadline - timedelta(minutes=1),
+                    cmdline="python3 main.py",
+                    exit_code=0,
+                    cwd="/",
+                    target_path="main.py",
+                    process_type="python",
+                ),
+                # A student opening the closed assignment read-only after the deadline.
+                RunLog(
+                    **COMMON,
+                    event_id=uuid4(),
+                    occurred_at=deadline + timedelta(days=12),
+                    cmdline="python3 main.py",
+                    exit_code=0,
+                    cwd="/",
+                    target_path="main.py",
+                    process_type="python",
+                ),
+                BuildLog(
+                    **COMMON,
+                    event_id=uuid4(),
+                    occurred_at=deadline + timedelta(days=12),
+                    cwd="/",
+                    binary_path="gcc",
+                    cmdline="gcc main.c",
+                    exit_code=1,
+                    target_path="main.c",
+                ),
+            ]
+        )
+        session.commit()
+        bounded = get_dashboard_summaries(
+            session, "os-1", "assignment-42", [1], until=deadline
+        )
+        unbounded = get_dashboard_summaries(session, "os-1", "assignment-42", [1])
+
+    assert bounded[1]["run_count"] == 1
+    assert bounded[1]["build_count"] == 0
+    assert bounded[1]["build_fail_count"] == 0
+    assert bounded[1]["last_activity"].replace(tzinfo=timezone.utc) == deadline - timedelta(minutes=1)
+    assert unbounded[1]["run_count"] == 2
+    assert unbounded[1]["build_count"] == 1

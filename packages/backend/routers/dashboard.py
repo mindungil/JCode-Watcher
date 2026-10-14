@@ -17,7 +17,9 @@ def get_dashboard_summary(
     request: DashboardSummaryRequest,
     db: Session = Depends(get_session),
 ):
-    summaries = get_dashboard_summaries(db, class_div, hw_name, request.student_ids)
+    summaries = get_dashboard_summaries(
+        db, class_div, hw_name, request.student_ids, until=request.until
+    )
     return DashboardSummaryResponse(
         students=[DashboardStudentSummary(**summaries[student_id]) for student_id in dict.fromkeys(request.student_ids)]
     )

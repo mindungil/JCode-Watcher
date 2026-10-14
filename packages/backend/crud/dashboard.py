@@ -1,3 +1,6 @@
+from datetime import datetime
+from typing import Optional
+
 from models.buildLog import BuildLog
 from models.runLog import RunLog
 from models.snapshot import Snapshot
@@ -99,14 +102,21 @@ def _dashboard_summaries(
 
 
 def get_dashboard_summaries(
-    db: Session, class_div: str, hw_name: str, student_ids: list[int]
+    db: Session,
+    class_div: str,
+    hw_name: str,
+    student_ids: list[int],
+    until: Optional[datetime] = None,
 ) -> dict[int, dict]:
     keys = [str(value) for value in student_ids]
-    rows = _dashboard_summaries(
-        db,
-        lambda model: assignment_predicates(model, class_div, hw_name),
-        keys,
-    )
+
+    def predicates(model):
+        conditions = tuple(assignment_predicates(model, class_div, hw_name))
+        if until is None:
+            return conditions
+        return (*conditions, model.occurred_at < until)
+
+    rows = _dashboard_summaries(db, predicates, keys)
     return {int(key): {**row, "student_id": int(key)} for key, row in rows.items()}
 
 

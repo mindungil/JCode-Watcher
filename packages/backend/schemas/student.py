@@ -46,6 +46,9 @@ class RunLogResponse(BaseModel):
 
 class DashboardSummaryRequest(BaseModel):
     student_ids: List[int] = Field(min_length=1, max_length=500)
+    # Exclusive upper bound, normally the assignment deadline. Activity after it
+    # (for example runs inside a read-only closed assignment) is not a submission.
+    until: Optional[datetime] = None
 
 
 class DashboardStudentSummary(BaseModel):
