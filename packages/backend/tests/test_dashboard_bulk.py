@@ -143,3 +143,15 @@ def test_dashboard_summary_excludes_activity_after_until():
     assert bounded[1]["last_activity"].replace(tzinfo=timezone.utc) == deadline - timedelta(minutes=1)
     assert unbounded[1]["run_count"] == 2
     assert unbounded[1]["build_count"] == 1
+
+
+def test_dashboard_summary_until_requires_time_zone():
+    import pytest
+    from pydantic import ValidationError
+    from schemas.student import DashboardSummaryRequest
+
+    request = DashboardSummaryRequest(student_ids=[1], until="2026-10-03T00:01:00+09:00")
+    assert request.until.utcoffset().total_seconds() == 9 * 3600
+    with pytest.raises(ValidationError):
+        DashboardSummaryRequest(student_ids=[1], until="2026-10-03T00:01:00")
+    assert DashboardSummaryRequest(student_ids=[1]).until is None

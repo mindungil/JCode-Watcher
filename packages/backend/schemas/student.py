@@ -2,7 +2,7 @@ from pydantic import BaseModel
 from typing import List, Optional
 from sqlmodel import SQLModel
 from datetime import datetime
-from pydantic import Field
+from pydantic import Field, field_validator
 
 
 class SnapshotAvgResponse(BaseModel):
@@ -49,6 +49,14 @@ class DashboardSummaryRequest(BaseModel):
     # Exclusive upper bound, normally the assignment deadline. Activity after it
     # (for example runs inside a read-only closed assignment) is not a submission.
     until: Optional[datetime] = None
+
+    @field_validator("until")
+    @classmethod
+    def require_timezone(cls, value: Optional[datetime]) -> Optional[datetime]:
+        # Event times are stored with a time zone; a naive bound would be ambiguous.
+        if value is not None and (value.tzinfo is None or value.utcoffset() is None):
+            raise ValueError("until must include a time zone")
+        return value
 
 
 class DashboardStudentSummary(BaseModel):
